@@ -27,12 +27,13 @@ const ALLOWED_ORIGINS = [
     'https://setup-aura-ai.vercel.app',
     'https://setupaura.online',
     'https://www.setupaura.online',
+    'https://api.setupaura.online',
     process.env.FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:4173',
 ].filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
     origin: (origin, callback) => {
         if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
         callback(new Error('Not allowed by CORS'));
@@ -40,8 +41,9 @@ app.use(cors({
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-}));
-app.options('*', cors());
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
