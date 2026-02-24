@@ -42,9 +42,11 @@ const correctImageOrientation = (file) => new Promise((resolve, reject) => {
         img.onerror = reject;
         img.onload = () => {
             const swapped = orientation >= 5 && orientation <= 8;
+            const naturalW = swapped ? img.height : img.width;
+            const naturalH = swapped ? img.width : img.height;
             const canvas = document.createElement('canvas');
-            canvas.width = swapped ? img.height : img.width;
-            canvas.height = swapped ? img.width : img.height;
+            canvas.width = naturalW;
+            canvas.height = naturalH;
             const ctx = canvas.getContext('2d');
             switch (orientation) {
                 case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
@@ -58,7 +60,7 @@ const correctImageOrientation = (file) => new Promise((resolve, reject) => {
             }
             ctx.drawImage(img, 0, 0);
             URL.revokeObjectURL(blobUrl);
-            resolve(canvas.toDataURL('image/jpeg', 0.92));
+            resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), width: naturalW, height: naturalH });
         };
         img.src = blobUrl;
     };
@@ -75,6 +77,7 @@ export const ScanScreen = () => {
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const [showCropper, setShowCropper] = useState(false);
     const [fileError, setFileError] = useState('');
+    const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
     const fileInputRef = useRef(null);
     const scanTimerRef = useRef(null);
@@ -98,8 +101,9 @@ export const ScanScreen = () => {
             return;
         }
         try {
-            const correctedDataUrl = await correctImageOrientation(file);
-            setPreview(correctedDataUrl);
+            const { dataUrl, width, height } = await correctImageOrientation(file);
+            setAspectRatio(height > width ? 9 / 16 : 16 / 9);
+            setPreview(dataUrl);
             setShowCropper(true);
         } catch {
             setFileError('Could not read this image. Please try another file.');
@@ -187,6 +191,7 @@ export const ScanScreen = () => {
                             crop={crop}
                             zoom={zoom}
                             rotation={rotation}
+                            aspect={aspectRatio}
                             onCropChange={setCrop}
                             onCropComplete={onCropComplete}
                             onZoomChange={setZoom}
