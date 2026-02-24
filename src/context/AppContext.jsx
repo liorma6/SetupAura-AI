@@ -5,7 +5,7 @@ const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
     const [state, setState] = useState({
-        screen: new URLSearchParams(window.location.search).get('view') === 'pricing' ? 'recommendations' : 'scan',
+        screen: new URLSearchParams(window.location.search).get('view') === 'pricing' ? 'recommendations' : 'welcome',
         uploadedImage: null,
         analysisResult: null,
         selectedTheme: null,
