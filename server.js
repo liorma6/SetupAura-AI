@@ -13,6 +13,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
+const otpStore = new Map();
+
 const ALLOWED_ORIGINS = [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     'http://localhost:5173',
@@ -165,6 +167,51 @@ app.post('/api/submit-review', (req, res) => {
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
     console.log(`[Review] ${rating} stars`);
     res.json({ success: true });
+});
+
+app.post('/api/send-otp', async (req, res) => {
+    const { email } = req.body;
+    if (!email || email.trim() === '') return res.status(400).json({ error: 'Email required' });
+    const normalizedEmail = email.trim().toLowerCase();
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expires = Date.now() + 10 * 60 * 1000;
+    otpStore.set(normalizedEmail, { code, expires });
+    try {
+        await transporter.sendMail({
+            from: '"SetupAura AI" <noreply@setupaura.com>',
+            to: email.trim(),
+            subject: 'Your SetupAura Verification Code',
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0d0d0d;color:#fff;padding:40px;border-radius:12px;border:1px solid #3b0764;">
+                <h2 style="color:#a855f7;margin-top:0;">Verify Your Email</h2>
+                <p style="color:#ccc;">Use the code below to verify your email and unlock your free AI room transformation.</p>
+                <div style="background:#1a0030;border:2px solid #7c3aed;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+                    <span style="font-size:48px;font-weight:900;letter-spacing:12px;color:#a855f7;font-family:monospace;">${code}</span>
+                </div>
+                <p style="color:#9ca3af;font-size:0.85em;">This code expires in 10 minutes. If you did not request this, ignore this email.</p>
+            </div>`,
+        });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[OTP Email] Failed:', err.message);
+        res.status(500).json({ error: 'Failed to send OTP email' });
+    }
+});
+
+app.post('/api/verify-otp', (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email and code required' });
+    const normalizedEmail = email.trim().toLowerCase();
+    const entry = otpStore.get(normalizedEmail);
+    if (!entry) return res.status(400).json({ error: 'INVALID_OTP', message: 'No code was sent to this email. Please request a new one.' });
+    if (Date.now() > entry.expires) {
+        otpStore.delete(normalizedEmail);
+        return res.status(400).json({ error: 'EXPIRED_OTP', message: 'This code has expired. Please request a new one.' });
+    }
+    if (entry.code !== code.trim()) {
+        return res.status(400).json({ error: 'WRONG_OTP', message: 'Incorrect code. Please try again.' });
+    }
+    otpStore.delete(normalizedEmail);
+    res.json({ success: true, verified: true });
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));

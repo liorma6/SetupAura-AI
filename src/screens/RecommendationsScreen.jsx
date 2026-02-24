@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, Lock, Zap, Star, Crown, Mail } from 'lucide-react';
+import { Sparkles, Lock, Zap, Star, Crown, Mail, ShieldCheck, RotateCcw } from 'lucide-react';
 
 const ADMIN_EMAIL = 'liorma6@gmail.com';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -150,11 +150,20 @@ export const RecommendationsScreen = () => {
     const [view, setView] = useState(getInitialView);
     const [userEmail, setUserEmail] = useState(getStoredEmail);
     const [emailInput, setEmailInput] = useState('');
+    const [pendingEmail, setPendingEmail] = useState('');
     const [selectedTheme, setSelectedTheme] = useState(THEMES[0].value);
     const [aiImage, setAiImage] = useState(null);
     const [error, setError] = useState('');
     const [rating, setRating] = useState(0);
     const [reviewText, setReviewText] = useState('');
+
+    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+    const [otpError, setOtpError] = useState('');
+    const [otpLoading, setOtpLoading] = useState(false);
+    const [sendingOtp, setSendingOtp] = useState(false);
+    const [otpCooldown, setOtpCooldown] = useState(0);
+    const otpRefs = useRef([]);
+    const cooldownRef = useRef(null);
 
     const isAdmin = userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
@@ -170,13 +179,110 @@ export const RecommendationsScreen = () => {
             .catch(reject);
     }), []);
 
-    const handleEmailSubmit = (e) => {
+    const startCooldown = () => {
+        setOtpCooldown(30);
+        cooldownRef.current = setInterval(() => {
+            setOtpCooldown(prev => {
+                if (prev <= 1) { clearInterval(cooldownRef.current); return 0; }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    const handleEmailSubmit = async (e) => {
         e.preventDefault();
         const email = emailInput.trim();
         if (!email) return;
-        try { localStorage.setItem('setupaura_email', email); } catch { }
-        setUserEmail(email);
-        setView('ready');
+        setSendingOtp(true);
+        setOtpError('');
+        try {
+            const res = await fetch(`${API_URL}/api/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to send code');
+            setPendingEmail(email);
+            setOtpDigits(['', '', '', '', '', '']);
+            setOtpError('');
+            setView('otp');
+            startCooldown();
+        } catch (err) {
+            setOtpError(err.message);
+        } finally {
+            setSendingOtp(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (otpCooldown > 0) return;
+        setSendingOtp(true);
+        setOtpError('');
+        try {
+            const res = await fetch(`${API_URL}/api/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: pendingEmail }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to resend code');
+            setOtpDigits(['', '', '', '', '', '']);
+            startCooldown();
+        } catch (err) {
+            setOtpError(err.message);
+        } finally {
+            setSendingOtp(false);
+        }
+    };
+
+    const handleOtpDigitChange = (index, value) => {
+        const char = value.replace(/\D/g, '').slice(-1);
+        const next = [...otpDigits];
+        next[index] = char;
+        setOtpDigits(next);
+        setOtpError('');
+        if (char && index < 5) {
+            otpRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleOtpKeyDown = (index, e) => {
+        if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+            otpRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handleOtpPaste = (e) => {
+        e.preventDefault();
+        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        const next = [...otpDigits];
+        for (let i = 0; i < 6; i++) next[i] = pasted[i] || '';
+        setOtpDigits(next);
+        otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+    };
+
+    const handleVerifyOtp = async () => {
+        const code = otpDigits.join('');
+        if (code.length < 6) { setOtpError('Please enter the full 6-digit code.'); return; }
+        setOtpLoading(true);
+        setOtpError('');
+        try {
+            const res = await fetch(`${API_URL}/api/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: pendingEmail, code }),
+            });
+            const data = await res.json();
+            if (!res.ok) { setOtpError(data.message || 'Verification failed'); return; }
+            try { localStorage.setItem('setupaura_email', pendingEmail); } catch { }
+            setUserEmail(pendingEmail);
+            setView('ready');
+        } catch {
+            setOtpError('Network error. Please try again.');
+        } finally {
+            setOtpLoading(false);
+        }
     };
 
     const runGeneration = async () => {
@@ -264,11 +370,68 @@ export const RecommendationsScreen = () => {
                         onChange={e => setEmailInput(e.target.value)}
                         className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 outline-none"
                     />
-                    <button type="submit" className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-bold hover:scale-105 transition-transform active:scale-95 flex items-center justify-center gap-2">
+                    {otpError && <p className="text-red-400 text-sm">{otpError}</p>}
+                    <button type="submit" disabled={sendingOtp} className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-bold hover:scale-105 transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100">
                         <Sparkles className="w-5 h-5" />
-                        Continue
+                        {sendingOtp ? 'Sending Code...' : 'Send Verification Code'}
                     </button>
                 </form>
+            </div>
+        );
+    }
+
+    if (view === 'otp') {
+        return (
+            <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-20 h-20 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mb-6" style={{ boxShadow: '0 0 30px rgba(168,85,247,0.2)' }}>
+                    <ShieldCheck className="w-10 h-10 text-purple-400" />
+                </div>
+                <h2 className="text-3xl font-bold mb-2">Check Your Email</h2>
+                <p className="text-gray-400 mb-2">We sent a 6-digit code to</p>
+                <p className="text-purple-400 font-semibold mb-8">{pendingEmail}</p>
+
+                <div className="flex gap-3 mb-6" onPaste={handleOtpPaste}>
+                    {otpDigits.map((digit, i) => (
+                        <input
+                            key={i}
+                            ref={el => otpRefs.current[i] = el}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={e => handleOtpDigitChange(i, e.target.value)}
+                            onKeyDown={e => handleOtpKeyDown(i, e)}
+                            className={`w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 bg-white/5 text-white outline-none transition-all
+                                ${digit ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.4)]' : 'border-white/15 focus:border-purple-500'}`}
+                        />
+                    ))}
+                </div>
+
+                {otpError && <p className="text-red-400 text-sm mb-4">{otpError}</p>}
+
+                <button
+                    onClick={handleVerifyOtp}
+                    disabled={otpLoading || otpDigits.join('').length < 6}
+                    className="w-full max-w-sm py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-bold hover:scale-105 transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 mb-4"
+                >
+                    <ShieldCheck className="w-5 h-5" />
+                    {otpLoading ? 'Verifying...' : 'Verify & Continue'}
+                </button>
+
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <button
+                        onClick={handleResendOtp}
+                        disabled={otpCooldown > 0 || sendingOtp}
+                        className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Resend Code'}
+                    </button>
+                    <span>·</span>
+                    <button onClick={() => { setView('email'); setOtpError(''); }} className="hover:text-white transition-colors">
+                        Change Email
+                    </button>
+                </div>
             </div>
         );
     }
