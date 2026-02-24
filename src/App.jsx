@@ -1,0 +1,92 @@
+import { useState } from 'react';
+import { WelcomeScreen } from './screens/WelcomeScreen';
+import { ScanScreen } from './screens/ScanScreen';
+import { AnalysisScreen } from './screens/AnalysisScreen';
+import { ThemesScreen } from './screens/ThemesScreen';
+import { RecommendationsScreen } from './screens/RecommendationsScreen';
+import { AppProvider, useApp } from './context/AppContext';
+import { Footer } from './components/layout/Footer';
+import { PrivacyModal } from './components/modals/PrivacyModal';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const ScreenWrapper = ({ children, screenKey }) => (
+  <motion.div
+    key={screenKey}
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20 }}
+    transition={{ duration: 0.3 }}
+    className="h-full flex flex-col"
+  >
+    {children}
+  </motion.div>
+);
+
+const InnerApp = () => {
+  const { screen, setScreen } = useApp();
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+
+  const renderScreen = () => {
+    switch (screen) {
+      case 'welcome':
+        return (
+          <ScreenWrapper screenKey="welcome">
+            <WelcomeScreen onStart={() => setScreen('scan')} />
+          </ScreenWrapper>
+        );
+      case 'scan':
+        return (
+          <ScreenWrapper screenKey="scan">
+            <ScanScreen />
+          </ScreenWrapper>
+        );
+      case 'analysis':
+        return (
+          <ScreenWrapper screenKey="analysis">
+            <AnalysisScreen />
+          </ScreenWrapper>
+        );
+      case 'themes':
+        return (
+          <ScreenWrapper screenKey="themes">
+            <ThemesScreen />
+          </ScreenWrapper>
+        );
+      case 'recommendations':
+        return (
+          <ScreenWrapper screenKey="recommendations">
+            <RecommendationsScreen />
+          </ScreenWrapper>
+        );
+      default:
+        return <WelcomeScreen onStart={() => setScreen('scan')} />;
+    }
+  };
+
+  return (
+    <div className="mobile-wrapper flex flex-col relative overflow-hidden bg-background">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-hidden relative w-full">
+        <AnimatePresence mode="wait">
+          {renderScreen()}
+        </AnimatePresence>
+      </div>
+
+      {/* Global Footer */}
+      <Footer onOpenPrivacy={() => setIsPrivacyOpen(true)} />
+
+      {/* Modals */}
+      <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <AppProvider>
+      <InnerApp />
+    </AppProvider>
+  );
+}
+
+export default App;
