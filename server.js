@@ -63,6 +63,8 @@ const transporter = nodemailer.createTransport({
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
+transporter.verify().catch((err) => console.error('[SMTP] Connection verify failed:', err.message));
+
 app.post('/api/generate-design', async (req, res) => {
     const { image, email, theme } = req.body;
 
@@ -90,22 +92,28 @@ app.post('/api/generate-design', async (req, res) => {
 
         const openai = new OpenAI({ apiKey: token });
 
-        const visionCheck = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{
-                role: 'user',
-                content: [
-                    { type: 'text', text: 'Analyze this image. Is it a picture of a room, desk, computer setup, office space, bedroom, or living space? Reply ONLY with the single word TRUE or FALSE.' },
-                    { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}`, detail: 'low' } }
-                ]
-            }],
-            max_tokens: 5,
-        });
+        let isValidRoom = true;
+        try {
+            const visionCheck = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: 'Analyze this image. Is it a picture of a room, desk, computer setup, office space, bedroom, or living space? Reply ONLY with the single word TRUE or FALSE.' },
+                        { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}`, detail: 'low' } }
+                    ]
+                }],
+                max_tokens: 5,
+            });
+            isValidRoom = visionCheck.choices[0]?.message?.content?.trim().toUpperCase().startsWith('TRUE');
+        } catch (visionErr) {
+            console.error('[Vision] API error:', visionErr.message);
+            return res.status(500).json({ error: 'VISION_API_ERROR', message: 'Image analysis failed.' });
+        }
 
-        const isValidRoom = visionCheck.choices[0]?.message?.content?.trim().toUpperCase().startsWith('TRUE');
         if (!isValidRoom) {
             console.log(`[Validation] Invalid image rejected for: ${email}`);
-            return res.status(400).json({ error: 'INVALID_IMAGE', message: "We couldn't detect a room or desk in this photo. Please upload a clear picture of your setup." });
+            return res.status(400).json({ error: 'INVALID_IMAGE', message: 'Please upload a picture of a room.' });
         }
 
         const activeTheme = (theme || 'Premium RGB Gaming Room').trim();
@@ -208,7 +216,7 @@ app.post('/api/send-otp', async (req, res) => {
     } catch (err) {
         console.error('[OTP Email] Failed:', err.message);
         otpStore.delete(normalizedEmail);
-        res.status(500).json({ error: 'Failed to send OTP email' });
+        res.status(500).json({ error: 'EMAIL_FAILED', message: 'Failed to send email. Please try again.' });
     }
 });
 
