@@ -13,8 +13,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+const ALLOWED_ORIGINS = [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5173',
+    'http://localhost:4173',
+];
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST'],
+}));
+app.use(express.json({ limit: '10mb' }));
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
@@ -71,12 +82,16 @@ app.post('/api/generate-design', async (req, res) => {
         console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
 
         const openai = new OpenAI({ apiKey: token });
-        const aiResponse = await openai.images.edit({
-            model: 'gpt-image-1',
-            image: imageFile,
-            prompt: `Analyze the provided room image. Transform it into a high-end, photorealistic ${activeTheme}. CRITICAL: Maintain the exact architectural structure, walls, floor, and window placement of the original image. HOWEVER, you must heavily UPGRADE and REPLACE existing furniture. Replace standard desks with high-end gaming battle stations featuring multiple glowing monitors. Replace standard chairs with premium racing-style gaming chairs. Add aesthetic lighting, posters, and collectibles strictly matching the ${activeTheme} style. The final result must look like an authentic, unedited smartphone photograph of a dream gaming setup, with realistic textures and lighting. Do NOT generate cartoons or 3D renders.`,
-            size: '1024x1024',
-        });
+        const TIMEOUT_MS = 90000;
+        const aiResponse = await Promise.race([
+            openai.images.edit({
+                model: 'gpt-image-1',
+                image: imageFile,
+                prompt: `Analyze the provided room image. Transform it into a high-end, photorealistic ${activeTheme}. CRITICAL: Maintain the exact architectural structure, walls, floor, and window placement of the original image. HOWEVER, you must heavily UPGRADE and REPLACE existing furniture. Replace standard desks with high-end gaming battle stations featuring multiple glowing monitors. Replace standard chairs with premium racing-style gaming chairs. Add aesthetic lighting, posters, and collectibles strictly matching the ${activeTheme} style. The final result must look like an authentic, unedited smartphone photograph of a dream gaming setup, with realistic textures and lighting. Do NOT generate cartoons or 3D renders.`,
+                size: '1024x1024',
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out after 90 seconds')), TIMEOUT_MS))
+        ]);
 
         const filename = `gen-${Date.now()}.jpg`;
         const filepath = path.join(UPLOADS_DIR, filename);
@@ -98,7 +113,7 @@ app.post('/api/generate-design', async (req, res) => {
                         <div style="margin:20px 0;"><img src="cid:design_image" alt="Your Gaming Room" style="width:100%;border-radius:10px;" /></div>
                         <p style="color:#9ca3af;font-size:0.85em;">Unlock more themes and unlimited generations.</p>
                         <br><br>
-                        <a href="http://localhost:5173/?view=pricing" style="display:inline-block;padding:15px 25px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Unlock All Premium Themes Here</a>
+                        <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/?view=pricing" style="display:inline-block;padding:15px 25px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Unlock All Premium Themes Here</a>
                     </div>`,
                     attachments: [{ filename: 'your-design.jpg', path: filepath, cid: 'design_image' }]
                 });
@@ -118,12 +133,16 @@ app.post('/api/generate-design', async (req, res) => {
 
 app.post('/api/submit-review', (req, res) => {
     const { rating, feedback } = req.body;
+    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: 'Rating must be a number between 1 and 5' });
+    }
+    const safeFeedback = typeof feedback === 'string' ? feedback.slice(0, 2000) : '';
     const file = path.join(__dirname, 'reviews.json');
     let data = [];
     if (fs.existsSync(file)) {
         try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { data = []; }
     }
-    data.push({ rating, feedback, timestamp: new Date().toISOString() });
+    data.push({ rating, feedback: safeFeedback, timestamp: new Date().toISOString() });
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
     console.log(`[Review] ${rating} stars`);
     res.json({ success: true });

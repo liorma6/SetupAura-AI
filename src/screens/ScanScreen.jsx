@@ -16,8 +16,10 @@ export const ScanScreen = () => {
     const [rotation, setRotation] = useState(0);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     const [showCropper, setShowCropper] = useState(false);
+    const [fileError, setFileError] = useState('');
 
     const fileInputRef = useRef(null);
+    const scanTimerRef = useRef(null);
 
     const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
         setCroppedAreaPixels(croppedAreaPixels);
@@ -25,14 +27,24 @@ export const ScanScreen = () => {
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreview(reader.result);
-                setShowCropper(true);
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+        setFileError('');
+        if (!file.type.startsWith('image/')) {
+            setFileError('Only image files are supported (JPG, PNG, WEBP, etc.)');
+            e.target.value = '';
+            return;
         }
+        if (file.size > 10 * 1024 * 1024) {
+            setFileError('File too large. Maximum size is 10MB.');
+            e.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPreview(reader.result);
+            setShowCropper(true);
+        };
+        reader.readAsDataURL(file);
     };
 
     const triggerFileInput = () => fileInputRef.current?.click();
@@ -83,13 +95,19 @@ export const ScanScreen = () => {
 
     const handleScan = () => {
         setIsScanning(true);
-        setTimeout(() => {
+        scanTimerRef.current = setTimeout(() => {
             const mockName = "setup_" + Date.now();
             const result = calculateScore(mockName);
             setAnalysisResult(result);
             setScreen('analysis');
         }, 2000);
     };
+
+    useEffect(() => {
+        return () => {
+            if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+        };
+    }, []);
 
     return (
         <div className="fixed inset-0 w-full h-full bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
@@ -141,6 +159,7 @@ export const ScanScreen = () => {
                         <div className="text-center space-y-1">
                             <p className="text-gray-400 text-sm">Upload a clear photo of your desk</p>
                             <p className="text-gray-500 text-xs">to generate your aesthetic score.</p>
+                            {fileError && <p className="text-red-400 text-xs font-semibold mt-1">{fileError}</p>}
                         </div>
 
                         <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border border-dashed border-white/20 transition-colors hover:border-primary/30">

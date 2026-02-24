@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sparkles, Lock, Zap, Star, Crown, Mail } from 'lucide-react';
 
 const ADMIN_EMAIL = 'liorma6@gmail.com';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const THEMES = [
     { label: 'Premium RGB Gaming Room', value: 'Premium RGB Gaming Room', free: true },
@@ -21,13 +22,127 @@ const getStoredEmail = () => {
     catch { return ''; }
 };
 
+const hasUsedTrial = () => {
+    try { return localStorage.getItem('setupaura_trial_used') === 'true'; }
+    catch { return false; }
+};
+
+const markTrialUsed = () => {
+    try { localStorage.setItem('setupaura_trial_used', 'true'); } catch { }
+};
+
 const getInitialView = () => {
     if (new URLSearchParams(window.location.search).get('view') === 'pricing') return 'pricing';
     const email = getStoredEmail();
     if (!email) return 'email';
     if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return 'ready';
-    return 'pricing';
+    if (hasUsedTrial()) return 'pricing';
+    return 'ready';
 };
+
+const ThemeSelector = ({ themes, selectedTheme, onThemeClick, isAdmin }) => (
+    <div className="w-full max-w-md space-y-3 mb-8">
+        <p className="text-xs font-bold text-gray-500 tracking-widest uppercase mb-1">Select Theme</p>
+        {themes.map(t => (
+            <button
+                key={t.value}
+                onClick={() => onThemeClick(t)}
+                className={`w-full p-4 rounded-xl border flex justify-between items-center transition-all
+                    ${selectedTheme === t.value ? 'border-purple-500 bg-purple-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}
+                    ${!t.free && !isAdmin ? 'opacity-70' : ''}`}
+            >
+                <span className="font-medium text-sm">{t.label}</span>
+                {!t.free && (
+                    isAdmin
+                        ? <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">ADMIN</span>
+                        : <span className="flex items-center gap-1 text-[10px] font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full"><Lock className="w-2.5 h-2.5" /> PRO</span>
+                )}
+            </button>
+        ))}
+    </div>
+);
+
+const PricingTiers = () => (
+    <div id="pricing" className="w-full max-w-md mb-8">
+        <div className="flex items-center justify-center gap-2 mb-5">
+            <Lock className="w-4 h-4 text-gray-400" />
+            <p className="text-gray-400 text-sm font-semibold">Unlock more generations & themes</p>
+        </div>
+        <div className="space-y-3">
+            {TIERS.map(({ icon: Icon, label, price, detail, color, popular, checkoutUrl }) => (
+                <a
+                    key={label}
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`w-full p-4 rounded-xl border ${popular ? 'border-purple-500 bg-purple-500/10' : 'border-white/10 bg-white/5'} flex items-center gap-4 relative hover:scale-[1.02] transition-transform active:scale-[0.98]`}
+                >
+                    {popular && <span className="absolute -top-2.5 right-4 text-[10px] font-bold bg-purple-500 text-white px-2 py-0.5 rounded-full">MOST POPULAR</span>}
+                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shrink-0`}>
+                        <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-baseline justify-between">
+                            <span className="font-bold text-white">{label}</span>
+                            <span className={`font-bold text-transparent bg-clip-text bg-gradient-to-r ${color}`}>{price}</span>
+                        </div>
+                        <p className="text-xs text-gray-400">{detail}</p>
+                    </div>
+                </a>
+            ))}
+        </div>
+    </div>
+);
+
+const ReviewSection = ({ rating, setRating, reviewText, setReviewText, onSubmit }) => (
+    <div className="w-full max-w-md mb-8">
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 mb-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+                <Mail className="w-4 h-4 text-purple-400" />
+                <p className="text-sm font-semibold">Need help?</p>
+            </div>
+            <a href="mailto:liorma6@gmail.com" className="text-purple-400 text-sm hover:underline">liorma6@gmail.com</a>
+        </div>
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+            <h4 className="text-sm font-bold text-center mb-3">Rate Your Experience</h4>
+            <div className="flex gap-1 justify-center my-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => setRating(n)} className={`text-2xl transition-transform hover:scale-125 ${n <= rating ? 'text-yellow-400' : 'text-gray-600'}`}>★</button>
+                ))}
+            </div>
+            <textarea
+                value={reviewText}
+                onChange={e => setReviewText(e.target.value)}
+                placeholder="Share your thoughts..."
+                rows={3}
+                className="w-full mt-3 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
+            />
+            <button onClick={onSubmit} className="w-full mt-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-bold text-sm hover:scale-105 transition-transform active:scale-95">
+                Submit Review
+            </button>
+        </div>
+    </div>
+);
+
+const ResultImages = ({ uploadedImage, aiImage }) => (
+    <div className="w-full max-w-md mb-8">
+        {uploadedImage && (
+            <div className="mb-4">
+                <p className="text-xs font-bold text-gray-500 mb-1.5 tracking-wider">BEFORE</p>
+                <div className="rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/50">
+                    <img src={uploadedImage} alt="Before" className="w-full h-full object-cover" />
+                </div>
+            </div>
+        )}
+        <div className="flex items-center gap-2 mb-1.5">
+            <Sparkles className="w-3 h-3 text-purple-400" />
+            <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
+        </div>
+        <div className="rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] aspect-video">
+            <img src={aiImage} className="w-full h-full object-cover" alt="AI Result" />
+        </div>
+    </div>
+);
 
 export const RecommendationsScreen = () => {
     const { uploadedImage } = useApp();
@@ -43,7 +158,7 @@ export const RecommendationsScreen = () => {
 
     const isAdmin = userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-    const toBase64 = (blobUrl) => new Promise((resolve, reject) => {
+    const toBase64 = useCallback((blobUrl) => new Promise((resolve, reject) => {
         fetch(blobUrl)
             .then(r => r.blob())
             .then(blob => {
@@ -53,7 +168,7 @@ export const RecommendationsScreen = () => {
                 reader.readAsDataURL(blob);
             })
             .catch(reject);
-    });
+    }), []);
 
     const handleEmailSubmit = (e) => {
         e.preventDefault();
@@ -66,6 +181,10 @@ export const RecommendationsScreen = () => {
 
     const runGeneration = async () => {
         if (!userEmail) { setView('email'); return; }
+        if (!uploadedImage) {
+            setError('No image found. Please go back and upload a photo of your setup.');
+            return;
+        }
         setView('loading');
         setError('');
         try {
@@ -73,15 +192,16 @@ export const RecommendationsScreen = () => {
             if (imagePayload && imagePayload.startsWith('blob:')) {
                 imagePayload = await toBase64(imagePayload);
             }
-            const res = await fetch('http://localhost:3000/api/generate-design', {
+            const res = await fetch(`${API_URL}/api/generate-design`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image: imagePayload, email: userEmail, theme: selectedTheme })
             });
             const data = await res.json();
-            if (res.status === 403) { setView('pricing'); return; }
+            if (res.status === 403) { markTrialUsed(); setView('pricing'); return; }
             if (!res.ok) throw new Error(data.error || 'Generation failed');
             setAiImage(data.imageUrl);
+            if (!isAdmin) markTrialUsed();
             setView(isAdmin ? 'result' : 'pricing');
         } catch (err) {
             setError(err.message);
@@ -89,7 +209,7 @@ export const RecommendationsScreen = () => {
         }
     };
 
-    const handleThemeClick = (t) => {
+    const handleThemeClick = useCallback((t) => {
         if (!isAdmin && !t.free) {
             setView('pricing');
             return;
@@ -105,124 +225,24 @@ export const RecommendationsScreen = () => {
                 setView('ready');
             }
         }
-    };
+    }, [isAdmin, view, userEmail]);
 
     const handleSubmitReview = async () => {
+        if (rating === 0) { alert('Please select a star rating first.'); return; }
         try {
-            await fetch('http://localhost:3000/api/submit-review', {
+            const res = await fetch(`${API_URL}/api/submit-review`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rating, feedback: reviewText })
             });
-        } catch { }
-        alert('Thank you for your feedback!');
-        setRating(0);
-        setReviewText('');
+            if (!res.ok) throw new Error('Failed to submit');
+            alert('Thank you for your feedback!');
+            setRating(0);
+            setReviewText('');
+        } catch {
+            alert('Could not submit review. Please try again.');
+        }
     };
-
-    const ThemeSelector = () => (
-        <div className="w-full max-w-md space-y-3 mb-8">
-            <p className="text-xs font-bold text-gray-500 tracking-widest uppercase mb-1">Select Theme</p>
-            {THEMES.map(t => (
-                <button
-                    key={t.value}
-                    onClick={() => handleThemeClick(t)}
-                    className={`w-full p-4 rounded-xl border flex justify-between items-center transition-all
-                        ${selectedTheme === t.value ? 'border-purple-500 bg-purple-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}
-                        ${!t.free && !isAdmin ? 'opacity-70' : ''}`}
-                >
-                    <span className="font-medium text-sm">{t.label}</span>
-                    {!t.free && (
-                        isAdmin
-                            ? <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">ADMIN</span>
-                            : <span className="flex items-center gap-1 text-[10px] font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full"><Lock className="w-2.5 h-2.5" /> PRO</span>
-                    )}
-                </button>
-            ))}
-        </div>
-    );
-
-    const PricingTiers = () => (
-        <div id="pricing" className="w-full max-w-md mb-8">
-            <div className="flex items-center justify-center gap-2 mb-5">
-                <Lock className="w-4 h-4 text-gray-400" />
-                <p className="text-gray-400 text-sm font-semibold">Unlock more generations & themes</p>
-            </div>
-            <div className="space-y-3">
-                {TIERS.map(({ icon: Icon, label, price, detail, color, popular, checkoutUrl }) => (
-                    <a
-                        key={label}
-                        href={checkoutUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`w-full p-4 rounded-xl border ${popular ? 'border-purple-500 bg-purple-500/10' : 'border-white/10 bg-white/5'} flex items-center gap-4 relative hover:scale-[1.02] transition-transform active:scale-[0.98]`}
-                    >
-                        {popular && <span className="absolute -top-2.5 right-4 text-[10px] font-bold bg-purple-500 text-white px-2 py-0.5 rounded-full">MOST POPULAR</span>}
-                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shrink-0`}>
-                            <Icon className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                            <div className="flex items-baseline justify-between">
-                                <span className="font-bold text-white">{label}</span>
-                                <span className={`font-bold text-transparent bg-clip-text bg-gradient-to-r ${color}`}>{price}</span>
-                            </div>
-                            <p className="text-xs text-gray-400">{detail}</p>
-                        </div>
-                    </a>
-                ))}
-            </div>
-        </div>
-    );
-
-    const ReviewSection = () => (
-        <div className="w-full max-w-md mb-8">
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10 mb-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                    <Mail className="w-4 h-4 text-purple-400" />
-                    <p className="text-sm font-semibold">Need help?</p>
-                </div>
-                <a href="mailto:liorma6@gmail.com" className="text-purple-400 text-sm hover:underline">liorma6@gmail.com</a>
-            </div>
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <h4 className="text-sm font-bold text-center mb-3">Rate Your Experience</h4>
-                <div className="flex gap-1 justify-center my-2">
-                    {[1, 2, 3, 4, 5].map(n => (
-                        <button key={n} onClick={() => setRating(n)} className={`text-2xl transition-transform hover:scale-125 ${n <= rating ? 'text-yellow-400' : 'text-gray-600'}`}>★</button>
-                    ))}
-                </div>
-                <textarea
-                    value={reviewText}
-                    onChange={e => setReviewText(e.target.value)}
-                    placeholder="Share your thoughts..."
-                    rows={3}
-                    className="w-full mt-3 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
-                />
-                <button onClick={handleSubmitReview} className="w-full mt-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-bold text-sm hover:scale-105 transition-transform active:scale-95">
-                    Submit Review
-                </button>
-            </div>
-        </div>
-    );
-
-    const ResultImages = () => (
-        <div className="w-full max-w-md mb-8">
-            {uploadedImage && (
-                <div className="mb-4">
-                    <p className="text-xs font-bold text-gray-500 mb-1.5 tracking-wider">BEFORE</p>
-                    <div className="rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/50">
-                        <img src={uploadedImage} alt="Before" className="w-full h-full object-cover" />
-                    </div>
-                </div>
-            )}
-            <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles className="w-3 h-3 text-purple-400" />
-                <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
-            </div>
-            <div className="rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] aspect-video">
-                <img src={aiImage} className="w-full h-full object-cover" alt="AI Result" />
-            </div>
-        </div>
-    );
 
     if (view === 'email') {
         return (
@@ -264,10 +284,10 @@ export const RecommendationsScreen = () => {
                 <header className="w-full max-w-md flex items-center justify-between mb-8 pt-4">
                     <h1 className="text-xl font-bold text-purple-400">SetupAura AI</h1>
                 </header>
-                {aiImage && <ResultImages />}
-                <ThemeSelector />
+                {aiImage && <ResultImages uploadedImage={uploadedImage} aiImage={aiImage} />}
+                <ThemeSelector themes={THEMES} selectedTheme={selectedTheme} onThemeClick={handleThemeClick} isAdmin={isAdmin} />
                 <PricingTiers />
-                <ReviewSection />
+                <ReviewSection rating={rating} setRating={setRating} reviewText={reviewText} setReviewText={setReviewText} onSubmit={handleSubmitReview} />
             </div>
         );
     }
@@ -279,8 +299,8 @@ export const RecommendationsScreen = () => {
                     <h1 className="text-xl font-bold text-purple-400">SetupAura AI</h1>
                     {isAdmin && <span className="text-[10px] bg-blue-500 px-2 py-1 rounded font-bold">ADMIN MODE</span>}
                 </header>
-                {aiImage && <ResultImages />}
-                <ThemeSelector />
+                {aiImage && <ResultImages uploadedImage={uploadedImage} aiImage={aiImage} />}
+                <ThemeSelector themes={THEMES} selectedTheme={selectedTheme} onThemeClick={handleThemeClick} isAdmin={isAdmin} />
                 {error && <p className="text-red-400 text-sm mb-4 text-center">{error}</p>}
                 <button
                     onClick={runGeneration}
@@ -289,7 +309,7 @@ export const RecommendationsScreen = () => {
                     <Sparkles className="w-5 h-5" />
                     {aiImage ? 'Generate Another Design' : 'Generate My Design'}
                 </button>
-                <ReviewSection />
+                <ReviewSection rating={rating} setRating={setRating} reviewText={reviewText} setReviewText={setReviewText} onSubmit={handleSubmitReview} />
             </div>
         );
     }
