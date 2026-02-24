@@ -35,7 +35,8 @@ app.use(cors({
     },
     methods: ['GET', 'POST'],
 }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
@@ -246,6 +247,15 @@ app.post('/api/verify-otp', (req, res) => {
     }
     otpStore.delete(normalizedEmail);
     res.json({ success: true, verified: true });
+});
+
+app.use((req, res) => {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Route not found' });
+});
+
+app.use((err, req, res, next) => {
+    console.error('[GLOBAL ERROR]', err.message);
+    return res.status(err.status || 500).json({ error: 'GLOBAL_SERVER_ERROR', message: err.message || 'An unexpected error occurred' });
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
