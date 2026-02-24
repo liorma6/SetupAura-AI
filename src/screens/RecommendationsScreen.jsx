@@ -215,7 +215,7 @@ export const RecommendationsScreen = () => {
             return;
         }
         setSelectedTheme(t.value);
-        if (!isAdmin && view === 'pricing') {
+        if (!isAdmin && view === 'pricing' && hasUsedTrial()) {
             return;
         }
         if (view === 'pricing') {
