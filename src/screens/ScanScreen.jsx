@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Cropper from 'react-easy-crop';
 import { Button } from "../components/ui/Button";
 import { Camera, Image as ImageIcon, ScanLine, Loader2, ArrowLeft, Upload, ZoomIn, RotateCw, Check } from "lucide-react";
