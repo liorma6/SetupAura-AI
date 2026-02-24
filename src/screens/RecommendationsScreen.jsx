@@ -199,6 +199,11 @@ export const RecommendationsScreen = () => {
             });
             const data = await res.json();
             if (res.status === 403) { markTrialUsed(); setView('pricing'); return; }
+            if (res.status === 400 && data.error === 'INVALID_IMAGE') {
+                setError(data.message);
+                setView('ready');
+                return;
+            }
             if (!res.ok) throw new Error(data.error || 'Generation failed');
             setAiImage(data.imageUrl);
             if (!isAdmin) markTrialUsed();

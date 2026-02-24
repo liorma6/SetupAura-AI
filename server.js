@@ -78,10 +78,29 @@ app.post('/api/generate-design', async (req, res) => {
         const imageBuffer = Buffer.from(base64Data, 'base64');
         const imageFile = await toFile(imageBuffer, 'input.png', { type: 'image/png' });
 
+        const openai = new OpenAI({ apiKey: token });
+
+        const visionCheck = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Analyze this image. Is it a picture of a room, desk, computer setup, office space, bedroom, or living space? Reply ONLY with the single word TRUE or FALSE.' },
+                    { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Data}`, detail: 'low' } }
+                ]
+            }],
+            max_tokens: 5,
+        });
+
+        const isValidRoom = visionCheck.choices[0]?.message?.content?.trim().toUpperCase().startsWith('TRUE');
+        if (!isValidRoom) {
+            console.log(`[Validation] Invalid image rejected for: ${email}`);
+            return res.status(400).json({ error: 'INVALID_IMAGE', message: "We couldn't detect a room or desk in this photo. Please upload a clear picture of your setup." });
+        }
+
         const activeTheme = (theme || 'Premium RGB Gaming Room').trim();
         console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
 
-        const openai = new OpenAI({ apiKey: token });
         const TIMEOUT_MS = 90000;
         const aiResponse = await Promise.race([
             openai.images.edit({
