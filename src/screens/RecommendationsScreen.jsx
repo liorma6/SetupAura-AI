@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sparkles, Lock, Zap, Star, Crown, Mail, ShieldCheck, RotateCcw } from 'lucide-react';
 
@@ -188,6 +188,10 @@ export const RecommendationsScreen = () => {
             });
         }, 1000);
     };
+
+    useEffect(() => {
+        return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+    }, []);
 
     const handleEmailSubmit = async (e) => {
         e.preventDefault();
@@ -408,6 +412,7 @@ export const RecommendationsScreen = () => {
                 </div>
 
                 {otpError && <p className="text-red-400 text-sm mb-4">{otpError}</p>}
+                <p className="text-gray-600 text-xs mb-6">Code expires in 10 minutes</p>
 
                 <button
                     onClick={handleVerifyOtp}
@@ -428,7 +433,7 @@ export const RecommendationsScreen = () => {
                         {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Resend Code'}
                     </button>
                     <span>·</span>
-                    <button onClick={() => { setView('email'); setOtpError(''); }} className="hover:text-white transition-colors">
+                    <button onClick={() => { setPendingEmail(''); setView('email'); setOtpError(''); }} className="hover:text-white transition-colors">
                         Change Email
                     </button>
                 </div>

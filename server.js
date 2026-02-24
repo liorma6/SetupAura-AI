@@ -14,6 +14,14 @@ const app = express();
 const PORT = 3000;
 
 const otpStore = new Map();
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of otpStore.entries()) {
+        if (now > entry.expires) otpStore.delete(key);
+    }
+}, 5 * 60 * 1000);
 
 const ALLOWED_ORIGINS = [
     process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -172,10 +180,16 @@ app.post('/api/submit-review', (req, res) => {
 app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email || email.trim() === '') return res.status(400).json({ error: 'Email required' });
+    if (!EMAIL_REGEX.test(email.trim())) return res.status(400).json({ error: 'INVALID_EMAIL_FORMAT', message: 'Please enter a valid email address.' });
     const normalizedEmail = email.trim().toLowerCase();
+    const existing = otpStore.get(normalizedEmail);
+    if (existing && Date.now() < existing.expires && Date.now() - existing.sentAt < 30000) {
+        const waitSeconds = Math.ceil((30000 - (Date.now() - existing.sentAt)) / 1000);
+        return res.status(429).json({ error: 'COOLDOWN', message: `Please wait ${waitSeconds} seconds before requesting a new code.` });
+    }
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expires = Date.now() + 10 * 60 * 1000;
-    otpStore.set(normalizedEmail, { code, expires });
+    otpStore.set(normalizedEmail, { code, expires, sentAt: Date.now(), attempts: 0 });
     try {
         await transporter.sendMail({
             from: '"SetupAura AI" <noreply@setupaura.com>',
@@ -193,6 +207,7 @@ app.post('/api/send-otp', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('[OTP Email] Failed:', err.message);
+        otpStore.delete(normalizedEmail);
         res.status(500).json({ error: 'Failed to send OTP email' });
     }
 });
@@ -208,7 +223,13 @@ app.post('/api/verify-otp', (req, res) => {
         return res.status(400).json({ error: 'EXPIRED_OTP', message: 'This code has expired. Please request a new one.' });
     }
     if (entry.code !== code.trim()) {
-        return res.status(400).json({ error: 'WRONG_OTP', message: 'Incorrect code. Please try again.' });
+        entry.attempts = (entry.attempts || 0) + 1;
+        if (entry.attempts >= 5) {
+            otpStore.delete(normalizedEmail);
+            return res.status(400).json({ error: 'TOO_MANY_ATTEMPTS', message: 'Too many incorrect attempts. Please request a new code.' });
+        }
+        const remaining = 5 - entry.attempts;
+        return res.status(400).json({ error: 'WRONG_OTP', message: `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
     }
     otpStore.delete(normalizedEmail);
     res.json({ success: true, verified: true });
