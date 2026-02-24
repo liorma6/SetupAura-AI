@@ -7,6 +7,64 @@ import { motion } from "framer-motion";
 import { useApp } from "../context/AppContext";
 import { calculateScore } from "../utils/logicEngine";
 
+const readExifOrientation = (buffer) => {
+    const view = new DataView(buffer);
+    if (view.byteLength < 2 || view.getUint16(0, false) !== 0xFFD8) return 1;
+    let offset = 2;
+    while (offset + 4 < view.byteLength) {
+        const marker = view.getUint16(offset, false);
+        const segLen = view.getUint16(offset + 2, false);
+        if (marker === 0xFFE1) {
+            if (view.getUint32(offset + 4, false) !== 0x45786966) return 1;
+            const little = view.getUint16(offset + 10, false) === 0x4949;
+            const tagCount = view.getUint16(offset + 14, little);
+            for (let i = 0; i < tagCount; i++) {
+                const tagOffset = offset + 16 + i * 12;
+                if (tagOffset + 10 > view.byteLength) break;
+                if (view.getUint16(tagOffset, little) === 0x0112) {
+                    return view.getUint16(tagOffset + 8, little);
+                }
+            }
+            return 1;
+        }
+        offset += 2 + segLen;
+    }
+    return 1;
+};
+
+const correctImageOrientation = (file) => new Promise((resolve, reject) => {
+    const arrayReader = new FileReader();
+    arrayReader.onerror = reject;
+    arrayReader.onload = (e) => {
+        const orientation = readExifOrientation(e.target.result);
+        const blobUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+            const swapped = orientation >= 5 && orientation <= 8;
+            const canvas = document.createElement('canvas');
+            canvas.width = swapped ? img.height : img.width;
+            canvas.height = swapped ? img.width : img.height;
+            const ctx = canvas.getContext('2d');
+            switch (orientation) {
+                case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break;
+                case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break;
+                case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break;
+                case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+                case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break;
+                case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break;
+                case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break;
+                default: break;
+            }
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(blobUrl);
+            resolve(canvas.toDataURL('image/jpeg', 0.92));
+        };
+        img.src = blobUrl;
+    };
+    arrayReader.readAsArrayBuffer(file);
+});
+
 export const ScanScreen = () => {
     const { setScreen, setUploadedImage, setAnalysisResult } = useApp();
     const [isScanning, setIsScanning] = useState(false);
@@ -25,7 +83,7 @@ export const ScanScreen = () => {
         setCroppedAreaPixels(croppedAreaPixels);
     }, []);
 
-    const handleFileSelect = (e) => {
+    const handleFileSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         setFileError('');
@@ -39,12 +97,14 @@ export const ScanScreen = () => {
             e.target.value = '';
             return;
         }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setPreview(reader.result);
+        try {
+            const correctedDataUrl = await correctImageOrientation(file);
+            setPreview(correctedDataUrl);
             setShowCropper(true);
-        };
-        reader.readAsDataURL(file);
+        } catch {
+            setFileError('Could not read this image. Please try another file.');
+            e.target.value = '';
+        }
     };
 
     const triggerFileInput = () => fileInputRef.current?.click();

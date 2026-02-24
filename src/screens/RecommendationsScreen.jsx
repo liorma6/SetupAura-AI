@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Sparkles, Lock, Zap, Star, Crown, Mail, ShieldCheck, RotateCcw } from 'lucide-react';
 
 const ADMIN_EMAIL = 'liorma6@gmail.com';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`;
 
 const THEMES = [
     { label: 'Premium RGB Gaming Room', value: 'Premium RGB Gaming Room', free: true },
