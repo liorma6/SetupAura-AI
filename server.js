@@ -35,7 +35,7 @@ app.use(cors({
     },
     methods: ['GET', 'POST'],
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
@@ -46,7 +46,10 @@ const ADMIN_EMAIL = 'liorma6@gmail.com';
 
 const readLeads = () => {
     if (!fs.existsSync(LEADS_FILE)) return [];
-    try { return JSON.parse(fs.readFileSync(LEADS_FILE, 'utf8')); }
+    try {
+        const parsed = JSON.parse(fs.readFileSync(LEADS_FILE, 'utf8'));
+        return Array.isArray(parsed) ? parsed : [];
+    }
     catch { return []; }
 };
 
@@ -74,18 +77,18 @@ app.post('/api/generate-design', async (req, res) => {
     const token = process.env.OPENAI_API_KEY || process.env.OpenAi_TOKEN;
     if (!token) return res.status(500).json({ error: 'Missing OpenAI API Key' });
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
-
-    if (!isUserAdmin) {
-        const leads = readLeads();
-        if (leads.some(l => l.email?.toLowerCase() === normalizedEmail)) {
-            console.log(`[Paywall] Blocked: ${email}`);
-            return res.status(403).json({ error: 'Trial used', paywall: true });
-        }
-    }
-
     try {
+        const normalizedEmail = email.trim().toLowerCase();
+        const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
+
+        if (!isUserAdmin) {
+            const leads = readLeads();
+            if (leads.some(l => l.email?.toLowerCase() === normalizedEmail)) {
+                console.log(`[Paywall] Blocked: ${email}`);
+                return res.status(403).json({ error: 'Trial used', paywall: true });
+            }
+        }
+
         const base64Data = image.includes(';base64,') ? image.split(';base64,').pop() : image;
         const imageBuffer = Buffer.from(base64Data, 'base64');
         const imageFile = await toFile(imageBuffer, 'input.png', { type: 'image/png' });
@@ -164,7 +167,9 @@ app.post('/api/generate-design', async (req, res) => {
 
     } catch (error) {
         console.error('[ERROR]', error.message);
-        res.status(500).json({ error: error.message });
+        if (!res.headersSent) {
+            return res.status(500).json({ error: 'SERVER_ERROR', message: 'An unexpected server error occurred.' });
+        }
     }
 });
 
