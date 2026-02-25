@@ -19,6 +19,11 @@ export const ThemesScreen = () => {
 
 
     const handleNext = () => {
+        // Facebook Pixel Tracking: Report a "Lead" event when the user generates advice
+        if (window.fbq) {
+            window.fbq('track', 'Lead');
+        }
+
         setSelectedTheme(localSelection);
         setScreen('recommendations');
     };
