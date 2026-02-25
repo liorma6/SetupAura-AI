@@ -1,8 +1,8 @@
 /* eslint-disable react/prop-types */
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldCheck } from 'lucide-react';
+import { X, Accessibility } from 'lucide-react';
 
-export const PrivacyModal = ({ isOpen, onClose }) => {
+export const AccessibilityModal = ({ isOpen, onClose }) => {
     return (
         <AnimatePresence>
             {isOpen && (
@@ -23,42 +23,42 @@ export const PrivacyModal = ({ isOpen, onClose }) => {
                         <button
                             onClick={onClose}
                             className="absolute top-4 right-4 text-gray-400 hover:text-white"
-                            aria-label="Close privacy policy"
+                            aria-label="Close accessibility statement"
                         >
                             <X className="w-5 h-5" />
                         </button>
 
                         <div className="flex items-center gap-3 mb-4 text-primary">
-                            <ShieldCheck className="w-8 h-8" />
-                            <h3 className="text-xl font-display font-bold text-white">Privacy Policy</h3>
+                            <Accessibility className="w-8 h-8" />
+                            <h3 className="text-xl font-display font-bold text-white">Accessibility</h3>
                         </div>
 
                         <div className="space-y-4 text-sm text-gray-400 leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
                             <p>
-                                SetupAura AI is committed to protecting your personal data. This policy explains how we collect, use, and safeguard your information.
+                                SetupAura AI is committed to ensuring digital accessibility for people with disabilities. We continually improve the user experience for everyone and apply relevant accessibility standards.
                             </p>
                             <ul className="list-disc pl-4 space-y-2">
                                 <li>
-                                    <strong className="text-white">Image Processing:</strong> Uploaded images are transmitted securely to our AI service solely to generate your room transformation. Images are processed temporarily and are not permanently stored on our servers without your explicit consent.
+                                    <strong className="text-white">Conformance Status:</strong> We aim to conform to the Web Content Accessibility Guidelines (WCAG) 2.1 Level AA. These guidelines explain how to make web content more accessible to people with disabilities.
                                 </li>
                                 <li>
-                                    <strong className="text-white">Email Data:</strong> Your email address is collected to deliver your generated design and to send a one-time verification code. It is stored securely and used only to fulfil your request.
+                                    <strong className="text-white">Keyboard Navigation:</strong> All interactive elements, including buttons and form inputs, are accessible via keyboard navigation.
                                 </li>
                                 <li>
-                                    <strong className="text-white">No Third-Party Sharing:</strong> We do not sell, rent, or share your personal data with third parties for marketing or advertising purposes.
+                                    <strong className="text-white">Screen Readers:</strong> We use semantic HTML and ARIA labels to ensure compatibility with screen reader software.
                                 </li>
                                 <li>
-                                    <strong className="text-white">Third-Party Services:</strong> Image generation is powered by OpenAI. Please refer to OpenAI's privacy policy for details on how they handle data submitted via their API.
+                                    <strong className="text-white">Colour Contrast:</strong> Text and interactive elements meet minimum contrast ratio requirements to support users with visual impairments.
                                 </li>
                                 <li>
-                                    <strong className="text-white">Data Retention:</strong> Generated images are stored temporarily to allow you to view your result. They are not linked to your identity beyond the current session.
-                                </li>
-                                <li>
-                                    <strong className="text-white">Your Rights:</strong> You may contact us at any time to request deletion of any data associated with your email address.
+                                    <strong className="text-white">Ongoing Efforts:</strong> We regularly test our interface and are committed to addressing accessibility barriers as they are identified.
                                 </li>
                             </ul>
+                            <p>
+                                If you experience any difficulty accessing content on SetupAura AI, please contact us so we can assist you and improve our service.
+                            </p>
                             <p className="text-xs pt-4 border-t border-white/10">
-                                By using SetupAura AI, you agree to this policy. Last updated: February 2025.
+                                This statement was last reviewed in February 2025.
                             </p>
                         </div>
 

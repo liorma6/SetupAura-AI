@@ -7,6 +7,7 @@ import { RecommendationsScreen } from './screens/RecommendationsScreen';
 import { AppProvider, useApp } from './context/AppContext';
 import { Footer } from './components/layout/Footer';
 import { PrivacyModal } from './components/modals/PrivacyModal';
+import { AccessibilityModal } from './components/modals/AccessibilityModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const ScreenWrapper = ({ children, screenKey }) => (
@@ -25,6 +26,7 @@ const ScreenWrapper = ({ children, screenKey }) => (
 const InnerApp = () => {
   const { screen, setScreen } = useApp();
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
 
   const renderScreen = () => {
     switch (screen) {
@@ -73,10 +75,13 @@ const InnerApp = () => {
       </div>
 
       {/* Global Footer */}
-      <Footer onOpenPrivacy={() => setIsPrivacyOpen(true)} />
+      <Footer
+        onOpenPrivacy={() => setIsPrivacyOpen(true)}
+        onOpenAccessibility={() => setIsAccessibilityOpen(true)}
+      />
 
-      {/* Modals */}
       <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+      <AccessibilityModal isOpen={isAccessibilityOpen} onClose={() => setIsAccessibilityOpen(false)} />
     </div>
   );
 };
