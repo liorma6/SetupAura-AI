@@ -8,6 +8,8 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Footer } from './components/layout/Footer';
 import { PrivacyModal } from './components/modals/PrivacyModal';
 import { AccessibilityModal } from './components/modals/AccessibilityModal';
+import { TermsModal } from './components/modals/TermsModal';
+import { CookieModal } from './components/modals/CookieModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const ScreenWrapper = ({ children, screenKey }) => (
@@ -27,6 +29,8 @@ const InnerApp = () => {
   const { screen, setScreen } = useApp();
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isCookiesOpen, setIsCookiesOpen] = useState(false);
 
   const renderScreen = () => {
     switch (screen) {
@@ -78,10 +82,14 @@ const InnerApp = () => {
       <Footer
         onOpenPrivacy={() => setIsPrivacyOpen(true)}
         onOpenAccessibility={() => setIsAccessibilityOpen(true)}
+        onOpenTerms={() => setIsTermsOpen(true)}
+        onOpenCookies={() => setIsCookiesOpen(true)}
       />
 
       <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
       <AccessibilityModal isOpen={isAccessibilityOpen} onClose={() => setIsAccessibilityOpen(false)} />
+      <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
+      <CookieModal isOpen={isCookiesOpen} onClose={() => setIsCookiesOpen(false)} />
     </div>
   );
 };
