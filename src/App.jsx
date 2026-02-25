@@ -67,6 +67,12 @@ const InnerApp = () => {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isCookiesOpen, setIsCookiesOpen] = useState(false);
 
+  useEffect(() => {
+    if (window.fbq) {
+      window.fbq('trackCustom', 'ScreenViewed', { screen_name: screen });
+    }
+  }, [screen]);
+
   const renderScreen = () => {
     switch (screen) {
       case 'welcome':
