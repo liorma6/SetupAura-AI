@@ -54,20 +54,20 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 const LEADS_FILE = path.join(__dirname, 'leads.json');
 const ADMIN_EMAIL = 'liorma6@gmail.com';
 
-const readLeads = () => {
-    if (!fs.existsSync(LEADS_FILE)) return [];
+const readLeads = async () => {
     try {
-        const parsed = JSON.parse(fs.readFileSync(LEADS_FILE, 'utf8'));
+        const raw = await fs.promises.readFile(LEADS_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
     }
     catch { return []; }
 };
 
-const saveLead = (email) => {
-    const leads = readLeads();
+const saveLead = async (email) => {
+    const leads = await readLeads();
     if (leads.some(l => l.email?.toLowerCase() === email.toLowerCase())) return;
     leads.push({ email, timestamp: new Date().toISOString() });
-    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2));
+    await fs.promises.writeFile(LEADS_FILE, JSON.stringify(leads, null, 2));
     console.log(`[Lead] Saved: ${email}`);
 };
 
@@ -145,11 +145,11 @@ app.post('/api/generate-design', async (req, res) => {
 
         const filename = `gen-${Date.now()}.jpg`;
         const filepath = path.join(UPLOADS_DIR, filename);
-        fs.writeFileSync(filepath, Buffer.from(aiResponse.data[0].b64_json, 'base64'));
+        await fs.promises.writeFile(filepath, Buffer.from(aiResponse.data[0].b64_json, 'base64'));
         const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
         console.log(`[Saved] ${filepath}`);
 
-        if (!isUserAdmin) saveLead(email.trim());
+        if (!isUserAdmin) await saveLead(email.trim());
 
         try {
             if (process.env.EMAIL_USER && email) {
@@ -183,7 +183,7 @@ app.post('/api/generate-design', async (req, res) => {
     }
 });
 
-app.post('/api/submit-review', (req, res) => {
+app.post('/api/submit-review', async (req, res) => {
     const { rating, feedback } = req.body;
     if (typeof rating !== 'number' || rating < 1 || rating > 5) {
         return res.status(400).json({ error: 'Rating must be a number between 1 and 5' });
@@ -191,11 +191,13 @@ app.post('/api/submit-review', (req, res) => {
     const safeFeedback = typeof feedback === 'string' ? feedback.slice(0, 2000) : '';
     const file = path.join(__dirname, 'reviews.json');
     let data = [];
-    if (fs.existsSync(file)) {
-        try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { data = []; }
-    }
+    try {
+        const raw = await fs.promises.readFile(file, 'utf8');
+        data = JSON.parse(raw);
+        if (!Array.isArray(data)) data = [];
+    } catch { data = []; }
     data.push({ rating, feedback: safeFeedback, timestamp: new Date().toISOString() });
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    await fs.promises.writeFile(file, JSON.stringify(data, null, 2));
     console.log(`[Review] ${rating} stars`);
     res.json({ success: true });
 });
