@@ -58,16 +58,20 @@ const readLeads = async () => {
     try {
         const raw = await fs.promises.readFile(LEADS_FILE, 'utf8');
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        const leads = Array.isArray(parsed) ? parsed : [];
+        console.log(`[Leads] Loaded: ${leads.length}`);
+        return leads;
+    } catch {
+        return [];
     }
-    catch { return []; }
 };
 
 const saveLead = async (email) => {
     const leads = await readLeads();
-    if (leads.some(l => l.email?.toLowerCase() === email.toLowerCase())) return;
-    leads.push({ email, timestamp: new Date().toISOString() });
-    await fs.promises.writeFile(LEADS_FILE, JSON.stringify(leads, null, 2));
+    const safeLeads = Array.isArray(leads) ? leads : [];
+    if (safeLeads.some(l => l.email?.toLowerCase() === email.toLowerCase())) return;
+    safeLeads.push({ email, timestamp: new Date().toISOString() });
+    await fs.promises.writeFile(LEADS_FILE, JSON.stringify(safeLeads, null, 2));
     console.log(`[Lead] Saved: ${email}`);
 };
 
@@ -92,8 +96,8 @@ app.post('/api/generate-design', async (req, res) => {
         const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
 
         if (!isUserAdmin) {
-            const leads = readLeads();
-            if (leads.some(l => l.email?.toLowerCase() === normalizedEmail)) {
+            const leads = await readLeads();
+            if (Array.isArray(leads) && leads.some(l => l.email?.toLowerCase() === normalizedEmail)) {
                 console.log(`[Paywall] Blocked: ${email}`);
                 return res.status(403).json({ error: 'Trial used', paywall: true });
             }
