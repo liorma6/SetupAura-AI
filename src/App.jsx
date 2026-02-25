@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import { ScanScreen } from './screens/ScanScreen';
 import { AnalysisScreen } from './screens/AnalysisScreen';
@@ -11,6 +11,41 @@ import { AccessibilityModal } from './components/modals/AccessibilityModal';
 import { TermsModal } from './components/modals/TermsModal';
 import { CookieModal } from './components/modals/CookieModal';
 import { AnimatePresence, motion } from 'framer-motion';
+
+const CookieBanner = ({ onOpenCookies }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem('cookie-consent');
+    if (!consent) setIsVisible(true);
+  }, []);
+
+  const acceptCookies = () => {
+    localStorage.setItem('cookie-consent', 'true');
+    setIsVisible(false);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <motion.div
+      initial={{ y: 100 }}
+      animate={{ y: 0 }}
+      className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-purple-500/30 p-4 z-[9999] flex flex-col md:flex-row items-center justify-between gap-4"
+    >
+      <p className="text-xs text-gray-300 text-center md:text-left">
+        We use cookies to improve your experience and for analytics. By continuing to use this site, you agree to our
+        <button onClick={onOpenCookies} className="text-purple-400 underline ml-1">Cookie Policy</button>.
+      </p>
+      <button
+        onClick={acceptCookies}
+        className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-6 rounded-full transition-all"
+      >
+        Got it
+      </button>
+    </motion.div>
+  );
+};
 
 const ScreenWrapper = ({ children, screenKey }) => (
   <motion.div
@@ -43,7 +78,7 @@ const InnerApp = () => {
       case 'scan':
         return (
           <ScreenWrapper screenKey="scan">
-            <ScanScreen />
+            <ScanScreen onOpenTerms={() => setIsTermsOpen(true)} onOpenPrivacy={() => setIsPrivacyOpen(true)} />
           </ScreenWrapper>
         );
       case 'analysis':
@@ -71,20 +106,18 @@ const InnerApp = () => {
 
   return (
     <div className="mobile-wrapper flex flex-col relative overflow-hidden bg-background">
-      {/* Main Content Area */}
       <div className="flex-1 overflow-hidden relative w-full">
         <AnimatePresence mode="wait">
           {renderScreen()}
         </AnimatePresence>
       </div>
 
-      {/* Global Footer */}
       <Footer
         onOpenPrivacy={() => setIsPrivacyOpen(true)}
         onOpenAccessibility={() => setIsAccessibilityOpen(true)}
-        onOpenTerms={() => setIsTermsOpen(true)}
-        onOpenCookies={() => setIsCookiesOpen(true)}
       />
+
+      <CookieBanner onOpenCookies={() => setIsCookiesOpen(true)} />
 
       <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
       <AccessibilityModal isOpen={isAccessibilityOpen} onClose={() => setIsAccessibilityOpen(false)} />

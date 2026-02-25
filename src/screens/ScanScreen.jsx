@@ -67,7 +67,7 @@ const correctImageOrientation = (file) => new Promise((resolve, reject) => {
     arrayReader.readAsArrayBuffer(file);
 });
 
-export const ScanScreen = () => {
+export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
     const { setScreen, setUploadedImage, setAnalysisResult } = useApp();
     const [isScanning, setIsScanning] = useState(false);
     const [preview, setPreview] = useState(null);
@@ -78,6 +78,7 @@ export const ScanScreen = () => {
     const [showCropper, setShowCropper] = useState(false);
     const [fileError, setFileError] = useState('');
     const [aspectRatio, setAspectRatio] = useState(16 / 9);
+    const [isAgreed, setIsAgreed] = useState(false);
 
     const fileInputRef = useRef(null);
     const scanTimerRef = useRef(null);
@@ -158,6 +159,7 @@ export const ScanScreen = () => {
     };
 
     const handleScan = () => {
+        if (!isAgreed) return;
         setIsScanning(true);
         scanTimerRef.current = setTimeout(() => {
             const mockName = "setup_" + Date.now();
@@ -263,11 +265,26 @@ export const ScanScreen = () => {
                                 Gallery
                             </Button>
                         </div>
+
+                        {/* Terms and Privacy Checkbox */}
+                        <div className="flex items-start gap-2 mb-4 px-1">
+                            <input
+                                type="checkbox"
+                                id="terms"
+                                checked={isAgreed}
+                                onChange={(e) => setIsAgreed(e.target.checked)}
+                                className="mt-1 w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary/50"
+                            />
+                            <label htmlFor="terms" className="text-[11px] text-gray-400 leading-tight">
+                                I agree to the <button onClick={onOpenTerms} className="text-primary hover:underline">Terms of Use</button> and <button onClick={onOpenPrivacy} className="text-primary hover:underline">Privacy Policy</button>.
+                            </label>
+                        </div>
+
                         <Button
                             variant="primary"
                             onClick={handleScan}
-                            disabled={!preview || isScanning}
-                            className={`w-full shadow-lg ${(!preview && !isScanning) ? "opacity-50 grayscale" : "shadow-primary/20"}`}
+                            disabled={!preview || isScanning || !isAgreed}
+                            className={`w-full shadow-lg ${(!preview || isScanning || !isAgreed) ? "opacity-50 grayscale cursor-not-allowed" : "shadow-primary/20"}`}
                         >
                             {isScanning ? (
                                 <>

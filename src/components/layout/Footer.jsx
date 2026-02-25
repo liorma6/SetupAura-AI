@@ -1,23 +1,19 @@
 /* eslint-disable react/prop-types */
-export const Footer = ({ onOpenPrivacy, onOpenAccessibility, onOpenTerms, onOpenCookies }) => {
+export const Footer = ({ onOpenPrivacy, onOpenAccessibility }) => {
     return (
-        <footer className="w-full py-4 text-center">
-            <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 text-[10px] text-gray-400 uppercase font-bold tracking-widest">
-                <span>© 2025 SetupAura AI</span>
-                <span>•</span>
-                <button onClick={onOpenPrivacy} className="hover:text-primary transition-colors cursor-pointer">
+        <footer className="w-full py-5 text-center border-t border-white/5">
+            <p className="text-[11px] text-gray-500 mb-2">© 2026 SetupAura AI</p>
+            <div className="flex justify-center items-center gap-5">
+                <button
+                    onClick={onOpenPrivacy}
+                    className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
+                >
                     Privacy Policy
                 </button>
-                <span>•</span>
-                <button onClick={onOpenTerms} className="hover:text-primary transition-colors cursor-pointer">
-                    Terms of Use
-                </button>
-                <span>•</span>
-                <button onClick={onOpenCookies} className="hover:text-primary transition-colors cursor-pointer">
-                    Cookies
-                </button>
-                <span>•</span>
-                <button onClick={onOpenAccessibility} className="hover:text-primary transition-colors cursor-pointer">
+                <button
+                    onClick={onOpenAccessibility}
+                    className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
+                >
                     Accessibility
                 </button>
             </div>
