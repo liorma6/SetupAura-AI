@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Lock, Check, Loader2 } from "lucide-react";
 import { Button } from "../ui/Button";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`;
+
 export const EmailCaptureModal = ({ isOpen, onClose, theme, products, imageUrl }) => {
     const [email, setEmail] = useState("");
-    const [status, setStatus] = useState("idle"); // idle, loading, success
+    const [status, setStatus] = useState("idle");
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -19,11 +21,6 @@ export const EmailCaptureModal = ({ isOpen, onClose, theme, products, imageUrl }
         setStatus("loading");
 
         try {
-            // Dynamic API URL handling
-            const API_BASE_URL = window.location.hostname === 'localhost'
-                ? 'http://localhost:3000'
-                : `http://${window.location.hostname}:3000`;
-
             const response = await fetch(`${API_BASE_URL}/api/save-lead`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -34,7 +31,7 @@ export const EmailCaptureModal = ({ isOpen, onClose, theme, products, imageUrl }
                 setStatus("success");
             } else {
                 console.error("Failed to submit email");
-                setStatus("idle"); // reset on error or show error state
+                setStatus("idle");
             }
         } catch (error) {
             console.error("Error submitting email:", error);
@@ -46,7 +43,6 @@ export const EmailCaptureModal = ({ isOpen, onClose, theme, products, imageUrl }
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -55,14 +51,12 @@ export const EmailCaptureModal = ({ isOpen, onClose, theme, products, imageUrl }
                         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                     />
 
-                    {/* Modal Content */}
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 20 }}
                         className="relative w-full max-w-sm bg-[#15151a] border border-white/10 rounded-2xl p-6 shadow-2xl overflow-hidden"
                     >
-                        {/* Close Button */}
                         <button
                             onClick={onClose}
                             className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -70,7 +64,6 @@ export const EmailCaptureModal = ({ isOpen, onClose, theme, products, imageUrl }
                             <X className="w-5 h-5" />
                         </button>
 
-                        {/* Content */}
                         <div className="text-center">
                             {status === "success" ? (
                                 <div className="py-8">

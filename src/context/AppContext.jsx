@@ -1,18 +1,45 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const AppContext = createContext();
+const APP_STATE_KEY = 'setupaura_app_state';
 
-export const AppProvider = ({ children }) => {
+const getInitialState = () => {
     const initialPath = window.location.pathname;
     const queryView = new URLSearchParams(window.location.search).get('view');
-    const initialScreen = initialPath === '/pricing' || queryView === 'pricing' ? 'pricing' : 'welcome';
-    const [state, setState] = useState({
-        screen: initialScreen,
+    const fallbackScreen = initialPath === '/pricing' || queryView === 'pricing' ? 'pricing' : 'welcome';
+    const fallbackState = {
+        screen: fallbackScreen,
         uploadedImage: null,
         selectedTheme: null,
         generatedImage: null,
         verifiedEmail: '',
-    });
+    };
+
+    try {
+        const raw = localStorage.getItem(APP_STATE_KEY);
+        if (!raw) return fallbackState;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return fallbackState;
+        return {
+            screen: typeof parsed.screen === 'string' ? parsed.screen : fallbackState.screen,
+            uploadedImage: parsed.uploadedImage ?? null,
+            selectedTheme: parsed.selectedTheme ?? null,
+            generatedImage: parsed.generatedImage ?? null,
+            verifiedEmail: typeof parsed.verifiedEmail === 'string' ? parsed.verifiedEmail : '',
+        };
+    } catch {
+        return fallbackState;
+    }
+};
+
+export const AppProvider = ({ children }) => {
+    const [state, setState] = useState(getInitialState);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+        } catch {}
+    }, [state]);
 
     const setScreen = (screen) => {
         const path = screen === 'pricing' ? '/pricing' : '/';
@@ -27,13 +54,17 @@ export const AppProvider = ({ children }) => {
     const setVerifiedEmail = (email) => setState(prev => ({ ...prev, verifiedEmail: email }));
 
     const resetApp = () => {
-        setState({
+        const resetState = {
             screen: 'scan',
             uploadedImage: null,
             selectedTheme: null,
             generatedImage: null,
             verifiedEmail: ''
-        });
+        };
+        setState(resetState);
+        try {
+            localStorage.setItem(APP_STATE_KEY, JSON.stringify(resetState));
+        } catch {}
     };
 
     return (
