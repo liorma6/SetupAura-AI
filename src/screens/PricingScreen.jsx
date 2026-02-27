@@ -1,4 +1,5 @@
 import { Check, Crown, Star, Zap } from 'lucide-react';
+import { usePostHog } from '@posthog/react';
 
 const tiers = [
     {
@@ -40,6 +41,16 @@ const tierIcon = {
 };
 
 export const PricingScreen = () => {
+    const posthog = usePostHog();
+
+    const handleCheckoutClick = (tier) => {
+        const value = Number(String(tier.price).replace(/[^0-9.]/g, '')) || 0;
+        posthog.capture('InitiateCheckout', { tier: tier.name, value, currency: 'USD' });
+        if (typeof window !== 'undefined' && window.fbq) {
+            window.fbq('track', 'InitiateCheckout', { content_name: tier.name, value, currency: 'USD' });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#09090f] text-white px-6 py-10 overflow-y-auto">
             <div className="max-w-md mx-auto">
@@ -92,6 +103,7 @@ export const PricingScreen = () => {
                                     href={tier.checkoutUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => handleCheckoutClick(tier)}
                                     className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}
                                 >
                                     Upgrade Now
