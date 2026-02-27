@@ -3,15 +3,19 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import * as dotenv from 'dotenv';
+import { createRequire } from 'module';
 import nodemailer from 'nodemailer';
 import OpenAI, { toFile } from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-dotenv.config();
+const require = createRequire(import.meta.url);
+require('dotenv').config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
+const LIVE_SERVER_URL = 'https://setupaura.ai';
+const PRICING_URL = `${LIVE_SERVER_URL}/pricing`;
 
 const otpStore = new Map();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,6 +32,7 @@ const ALLOWED_ORIGINS = [
     'https://setupaura.online',
     'https://www.setupaura.online',
     'https://api.setupaura.online',
+    LIVE_SERVER_URL,
     process.env.FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:4173',
@@ -49,6 +54,10 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+const IMAGES_DIR = path.join(UPLOADS_DIR, 'images');
+if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
+const METADATA_DIR = path.join(UPLOADS_DIR, 'metadata');
+if (!fs.existsSync(METADATA_DIR)) fs.mkdirSync(METADATA_DIR, { recursive: true });
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 const LEADS_FILE = path.join(__dirname, 'leads.json');
@@ -82,6 +91,201 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify().catch((err) => console.error('[SMTP] Connection verify failed:', err.message));
 
+const detectMimeType = (source = '') => {
+    const lower = source.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    return 'image/jpeg';
+};
+
+const extractJsonArray = (text = '') => {
+    const trimmed = text.trim();
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+    } catch {}
+
+    const codeBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (codeBlock?.[1]) {
+        try {
+            const parsed = JSON.parse(codeBlock[1]);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {}
+    }
+
+    const start = trimmed.indexOf('[');
+    const end = trimmed.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+        const candidate = trimmed.slice(start, end + 1);
+        try {
+            const parsed = JSON.parse(candidate);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {}
+    }
+
+    return null;
+};
+
+const normalizeShoppingList = (items) => {
+    if (!Array.isArray(items)) return [];
+
+    return items
+        .slice(0, 5)
+        .map((item, index) => {
+            const rawName = String(item?.name || '').trim();
+            if (!rawName) return null;
+            const amazonLink = `https://www.amazon.com/s?k=${encodeURIComponent(rawName)}`;
+
+            return {
+                id: String(item?.id || `item-${index + 1}`),
+                name: rawName,
+                description: String(item?.description || '').trim() || `${rawName} for a themed gaming room setup`,
+                estimatedPrice: String(item?.estimatedPrice || '').trim() || 'Price varies',
+                buyLink: amazonLink,
+            };
+        })
+        .filter(Boolean);
+};
+
+const buildLockedShoppingList = () => [
+    { id: 'item-1', name: 'Premium RGB Accent Lighting', description: 'Full details are locked until upgrade', estimatedPrice: 'Locked', buyLink: PRICING_URL },
+    { id: 'item-2', name: 'Ergonomic Gaming Chair', description: 'Full details are locked until upgrade', estimatedPrice: 'Locked', buyLink: PRICING_URL },
+    { id: 'item-3', name: 'Mechanical Keyboard', description: 'Full details are locked until upgrade', estimatedPrice: 'Locked', buyLink: PRICING_URL },
+    { id: 'item-4', name: 'Themed Collector Decor', description: 'Full details are locked until upgrade', estimatedPrice: 'Locked', buyLink: PRICING_URL },
+];
+
+const renderShoppingListHtml = (items, unlocked) => {
+    const list = Array.isArray(items) ? items : [];
+    return `
+        <div style="margin-top:20px;border:1px solid ${unlocked ? '#1f2937' : '#4b5563'};border-radius:12px;padding:16px;background:${unlocked ? '#0b1220' : '#151515'};">
+            <h3 style="margin:0 0 12px 0;color:${unlocked ? '#93c5fd' : '#e5e7eb'};font-size:16px;">${unlocked ? 'Exact-Match Shopping List' : 'Shopping List Preview'}</h3>
+            ${list.map((item) => `
+                <div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;justify-content:space-between;gap:10px;">
+                        <strong style="color:#f9fafb;font-size:14px;">${item.name}</strong>
+                        <span style="color:${unlocked ? '#86efac' : '#fca5a5'};font-size:12px;font-weight:700;white-space:nowrap;">${item.estimatedPrice}</span>
+                    </div>
+                    <p style="margin:6px 0 0 0;color:#cbd5e1;font-size:12px;line-height:1.5;">${item.description}</p>
+                    <a href="${item.buyLink}" style="display:inline-block;margin-top:8px;color:#67e8f9;font-size:12px;font-weight:700;text-decoration:none;">${unlocked ? 'View item' : 'Unlock to view item link'}</a>
+                </div>
+            `).join('')}
+        </div>
+    `;
+};
+
+const getImageInputForGemini = async ({ image, imageUrl }) => {
+    if (image && typeof image === 'string') {
+        const hasPrefix = image.includes(';base64,');
+        const base64Data = hasPrefix ? image.split(';base64,').pop() : image;
+        const mimeTypeMatch = hasPrefix ? image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/) : null;
+        const mimeType = mimeTypeMatch?.[1] || 'image/png';
+        return { mimeType, data: base64Data };
+    }
+
+    if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new Error('Image input is required');
+    }
+
+    if (imageUrl.startsWith('/uploads/')) {
+        const localPath = path.join(__dirname, imageUrl);
+        const fileBuffer = await fs.promises.readFile(localPath);
+        return { mimeType: detectMimeType(localPath), data: fileBuffer.toString('base64') };
+    }
+
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        const urlObj = new URL(imageUrl);
+        if (urlObj.pathname.startsWith('/uploads/')) {
+            const localPath = path.join(__dirname, urlObj.pathname);
+            if (fs.existsSync(localPath)) {
+                const fileBuffer = await fs.promises.readFile(localPath);
+                return { mimeType: detectMimeType(localPath), data: fileBuffer.toString('base64') };
+            }
+        }
+
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error('Failed to download image');
+        }
+        const contentType = response.headers.get('content-type') || detectMimeType(imageUrl);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        return { mimeType: contentType.split(';')[0], data: buffer.toString('base64') };
+    }
+
+    throw new Error('Unsupported imageUrl format');
+};
+
+const SHARED_THEME_CONFIG = {
+    MODERN_GAMING: {
+        label: 'MODERN GAMING',
+        heroItems: ['Nanoleaf Shapes RGB Panels', 'Secretlab TITAN Evo Chair', 'Logitech G502 Mouse']
+    },
+    ANIME: {
+        label: 'ANIME',
+        heroItems: ['Luffy Gear 5 Nendoroid (Shelf-size)', 'Zoro Katana Wall Mount', 'Stack of One Piece Manga Volumes']
+    },
+    HEAVY_METAL: {
+        label: 'HEAVY METAL',
+        heroItems: ['Marshall Amp Stack', 'Electric Guitar Wall Mount', 'Metallica Framed Poster']
+    },
+    RETRO_ARCADE: {
+        label: 'RETRO ARCADE',
+        heroItems: ['Arcade1Up Pac-Man Counter-top', 'Neon Ghost Sign', 'Retro SNES Console']
+    },
+    FANTASY_RPG: {
+        label: 'FANTASY RPG',
+        heroItems: ['Dragon Head Bookend', 'Replica Witcher Silver Sword', 'Framed Middle-earth Map']
+    },
+    SCI_FI: {
+        label: 'SCI-FI',
+        heroItems: ['Holographic LED Fan Display', 'Vertical GPU Showcase', 'NASA-punk Desk Mat']
+    }
+};
+
+const resolveThemeConfig = (selectedTheme = '') => {
+    const normalized = String(selectedTheme || '').trim().toUpperCase();
+    if (normalized.includes('ANIME')) return SHARED_THEME_CONFIG.ANIME;
+    if (normalized.includes('HEAVY METAL') || normalized === 'METAL') return SHARED_THEME_CONFIG.HEAVY_METAL;
+    if (normalized.includes('RETRO ARCADE')) return SHARED_THEME_CONFIG.RETRO_ARCADE;
+    if (normalized.includes('FANTASY RPG')) return SHARED_THEME_CONFIG.FANTASY_RPG;
+    if (normalized.includes('SCI-FI')) return SHARED_THEME_CONFIG.SCI_FI;
+    return SHARED_THEME_CONFIG.MODERN_GAMING;
+};
+
+const analyzeRoomWithGemini = async ({ mimeType, data, selectedTheme }) => {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+        throw new Error('Missing Gemini API key');
+    }
+
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const modelName = 'gemini-2.5-flash';
+    console.log(`Using model: ${modelName}`);
+    const model = genAI.getGenerativeModel({ model: modelName });
+
+    const config = resolveThemeConfig(selectedTheme);
+    const [item1, item2, item3] = config.heroItems;
+    const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. Return ONLY a JSON array. For buyLink, generate a specific Amazon search URL: https://www.amazon.com/s?k=[PRODUCT_NAME].`;
+
+    const result = await model.generateContent([
+        { text: prompt },
+        { inlineData: { mimeType, data } }
+    ]);
+
+    const rawText = result.response.text();
+    const parsed = extractJsonArray(rawText);
+    if (!parsed) {
+        throw new Error('INVALID_GEMINI_RESPONSE');
+    }
+
+    const shoppingList = normalizeShoppingList(parsed);
+    if (!shoppingList.length) {
+        throw new Error('EMPTY_SHOPPING_LIST');
+    }
+
+    return shoppingList;
+};
+
 app.post('/api/generate-design', async (req, res) => {
     const { image, email, theme } = req.body;
 
@@ -94,8 +298,15 @@ app.post('/api/generate-design', async (req, res) => {
     try {
         const normalizedEmail = email.trim().toLowerCase();
         const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
+        const isPaidPremiumUser = Boolean(
+            req.body?.isPaidPremiumUser ||
+            req.body?.isPremiumUser ||
+            req.body?.paidPremiumUser ||
+            req.body?.hasPaidAccess
+        );
+        const hasUnlockedAccess = isUserAdmin || isPaidPremiumUser;
 
-        if (!isUserAdmin) {
+        if (!hasUnlockedAccess) {
             const leads = await readLeads();
             if (Array.isArray(leads) && leads.some(l => l.email?.toLowerCase() === normalizedEmail)) {
                 console.log(`[Paywall] Blocked: ${email}`);
@@ -133,57 +344,120 @@ app.post('/api/generate-design', async (req, res) => {
             return res.status(400).json({ error: 'INVALID_IMAGE', message: 'Please upload a picture of a room.' });
         }
 
-        const activeTheme = (theme || 'Premium RGB Gaming Room').trim();
+        const activeTheme = (theme || 'MODERN GAMING (RGB)').trim();
         console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
+        const themeConfig = resolveThemeConfig(activeTheme);
+        const [item1, item2, item3] = themeConfig.heroItems;
+
+        const enhancedPrompt = `A professional interior photograph of a high-end gaming room. NOT A DRAWING. Hyper-realistic, 8K resolution. Base: Dual monitors, mechanical keyboard, and PC tower. Theme: ${themeConfig.label}. Features: ${item1}, ${item2}, and ${item3} in realistic proportions (no oversized statues). Constraints: Maintain exact room layout from the uploaded image. Ensure clear ambient lighting. Furniture must not overlap (chair and bed must be separate and aesthetic).`;
 
         const TIMEOUT_MS = 90000;
         const aiResponse = await Promise.race([
             openai.images.edit({
                 model: 'gpt-image-1',
                 image: imageFile,
-                prompt: `Transform this room into a dark, moody, ultimate ${activeTheme}. STRICT RULES: (1) 100% PHOTOREALISTIC. No 3D, no cartoon. (2) LIGHTING: Make the room dark/night-time with vibrant, glowing RGB strips and neon lights creating dramatic contrast. (3) STRUCTURE: Keep walls, floor, and layout exactly the same. (4) FURNITURE: YOU MUST REPLACE the chair with a premium Secretlab-style gaming chair. UPGRADE any bedding to a modern gamer aesthetic. (5) DECOR: Add premium PC peripherals. Populate shelves/desk with a DIVERSE, cool mix of realistic One Piece and League of Legends figures, and high-end desk gadgets. Avoid repetitive toys. Make it look like a highly customized, lived-in pro gamer sanctuary.`,
+                prompt: enhancedPrompt,
                 size: '1024x1024',
             }),
             new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI request timed out after 90 seconds')), TIMEOUT_MS))
         ]);
 
+        const generatedBase64 = aiResponse.data[0].b64_json;
         const filename = `gen-${Date.now()}.jpg`;
-        const filepath = path.join(UPLOADS_DIR, filename);
-        await fs.promises.writeFile(filepath, Buffer.from(aiResponse.data[0].b64_json, 'base64'));
-        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
-        console.log(`[Saved] ${filepath}`);
+        const filepath = path.join(IMAGES_DIR, filename);
+        const generatedBuffer = Buffer.from(generatedBase64, 'base64');
+        fs.promises.writeFile(filepath, generatedBuffer)
+            .then(() => console.log(`[Saved] ${filepath}`))
+            .catch((err) => console.error('[SAVE_IMAGE_ERROR]', err));
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/images/${filename}`;
 
-        if (!isUserAdmin) await saveLead(email.trim());
-
+        let fullShoppingList = [];
         try {
-            if (process.env.EMAIL_USER && email) {
-                await transporter.sendMail({
-                    from: '"SetupAura AI" <noreply@setupaura.com>',
-                    to: email.trim(),
-                    subject: 'Your Gaming Room Design is Ready! 🎮',
-                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0d0d0d;color:#fff;padding:30px;border-radius:12px;">
-                        <h1 style="color:#a855f7;">Your AI Design is Ready! 🎮</h1>
-                        <p style="color:#ccc;">Here is your <strong>${activeTheme}</strong> transformation.</p>
-                        <div style="margin:20px 0;"><img src="cid:design_image" alt="Your Gaming Room" style="width:100%;border-radius:10px;" /></div>
-                        <p style="color:#9ca3af;font-size:0.85em;">Unlock more themes and unlimited generations.</p>
-                        <br><br>
-                        <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/?view=pricing" style="display:inline-block;padding:15px 25px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Unlock All Premium Themes Here</a>
-                    </div>`,
-                    attachments: [{ filename: 'your-design.jpg', path: filepath, cid: 'design_image' }]
-                });
-                console.log(`[Email] Sent to ${email}`);
-            }
-        } catch (mailErr) {
-            console.error('[Email] Failed:', mailErr.message);
+            fullShoppingList = await analyzeRoomWithGemini({ mimeType: 'image/jpeg', data: generatedBase64, selectedTheme: activeTheme });
+        } catch (shoppingErr) {
+            console.error('[SHOPPING_LIST_ERROR]', shoppingErr.message);
         }
 
-        res.json({ imageUrl });
+        const metadataPayload = {
+            userEmail: email.trim(),
+            theme: activeTheme,
+            shoppingList: fullShoppingList,
+            timestamp: new Date().toISOString(),
+        };
+        const metadataFilePath = path.join(METADATA_DIR, `${path.parse(filename).name}.json`);
+        fs.promises.writeFile(metadataFilePath, JSON.stringify(metadataPayload, null, 2))
+            .then(() => console.log(`[Saved Metadata] ${metadataFilePath}`))
+            .catch((err) => console.error('[SAVE_METADATA_ERROR]', err));
+
+        const lockedShoppingList = buildLockedShoppingList();
+
+        if (!hasUnlockedAccess) {
+            saveLead(email.trim()).catch((err) => console.error('[LEAD_SAVE_ERROR]', err));
+        }
+
+        res.json({
+            imageUrl,
+            shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
+            shoppingListUnlocked: hasUnlockedAccess
+        });
+
+        if (process.env.EMAIL_USER && email) {
+            const adminEmailBody = `
+                    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
+                        <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>
+                        <p style="color:#cbd5e1;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+                        <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
+                        ${renderShoppingListHtml(fullShoppingList, true)}
+                        <div style="margin-top:18px;">
+                            <a href="${LIVE_SERVER_URL}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open SetupAura</a>
+                        </div>
+                    </div>
+                `;
+
+            const regularEmailBody = `
+                    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
+                        <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
+                        <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+                        <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
+                        ${renderShoppingListHtml(lockedShoppingList, false)}
+                        <div style="margin-top:20px;text-align:center;">
+                            <a href="${PRICING_URL}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">Unlock Your Full Shopping List</a>
+                        </div>
+                    </div>
+                `;
+            transporter.sendMail({
+                from: '"SetupAura AI" <noreply@setupaura.com>',
+                to: email.trim(),
+                subject: hasUnlockedAccess ? 'Your Full Design + Shopping List' : 'Your Design Is Ready + Unlock Shopping List',
+                html: hasUnlockedAccess ? adminEmailBody : regularEmailBody,
+                attachments: [{ filename: 'your-design.jpg', content: generatedBuffer, cid: 'design_image' }]
+            })
+                .then(() => console.log(`[Email] Sent to ${email}`))
+                .catch((mailErr) => console.error('[Email] Failed:', mailErr.message));
+        }
 
     } catch (error) {
         console.error('[ERROR]', error.message);
         if (!res.headersSent) {
             return res.status(500).json({ error: 'SERVER_ERROR', message: 'An unexpected server error occurred.' });
         }
+    }
+});
+
+app.post('/api/analyze-room', async (req, res) => {
+    const { image, imageUrl, selectedTheme } = req.body || {};
+
+    if (!image && !imageUrl) {
+        return res.status(400).json({ error: 'image or imageUrl is required' });
+    }
+
+    try {
+        const { mimeType, data } = await getImageInputForGemini({ image, imageUrl });
+        const items = await analyzeRoomWithGemini({ mimeType, data, selectedTheme });
+        return res.json({ items });
+    } catch (error) {
+        console.error('[ANALYZE_ROOM_ERROR]', error.message);
+        return res.status(500).json({ error: 'ANALYZE_ROOM_FAILED', message: error.message });
     }
 });
 

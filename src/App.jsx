@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import { ScanScreen } from './screens/ScanScreen';
-import { AnalysisScreen } from './screens/AnalysisScreen';
 import { ThemesScreen } from './screens/ThemesScreen';
 import { RecommendationsScreen } from './screens/RecommendationsScreen';
+import { ResultScreen } from './screens/ResultScreen';
+import { PricingScreen } from './screens/PricingScreen';
 import { AppProvider, useApp } from './context/AppContext';
 import { Footer } from './components/layout/Footer';
 import { PrivacyModal } from './components/modals/PrivacyModal';
@@ -87,12 +88,6 @@ const InnerApp = () => {
             <ScanScreen onOpenTerms={() => setIsTermsOpen(true)} onOpenPrivacy={() => setIsPrivacyOpen(true)} />
           </ScreenWrapper>
         );
-      case 'analysis':
-        return (
-          <ScreenWrapper screenKey="analysis">
-            <AnalysisScreen />
-          </ScreenWrapper>
-        );
       case 'themes':
         return (
           <ScreenWrapper screenKey="themes">
@@ -103,6 +98,18 @@ const InnerApp = () => {
         return (
           <ScreenWrapper screenKey="recommendations">
             <RecommendationsScreen />
+          </ScreenWrapper>
+        );
+      case 'result':
+        return (
+          <ScreenWrapper screenKey="result">
+            <ResultScreen />
+          </ScreenWrapper>
+        );
+      case 'pricing':
+        return (
+          <ScreenWrapper screenKey="pricing">
+            <PricingScreen />
           </ScreenWrapper>
         );
       default:

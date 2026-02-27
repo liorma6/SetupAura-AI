@@ -1,27 +1,38 @@
-/* eslint-disable react/prop-types */
 import { createContext, useContext, useState } from 'react';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
+    const initialPath = window.location.pathname;
+    const queryView = new URLSearchParams(window.location.search).get('view');
+    const initialScreen = initialPath === '/pricing' || queryView === 'pricing' ? 'pricing' : 'welcome';
     const [state, setState] = useState({
-        screen: new URLSearchParams(window.location.search).get('view') === 'pricing' ? 'recommendations' : 'welcome',
+        screen: initialScreen,
         uploadedImage: null,
-        analysisResult: null,
         selectedTheme: null,
+        generatedImage: null,
+        verifiedEmail: '',
     });
 
-    const setScreen = (screen) => setState(prev => ({ ...prev, screen }));
+    const setScreen = (screen) => {
+        const path = screen === 'pricing' ? '/pricing' : '/';
+        if (window.location.pathname !== path) {
+            window.history.pushState({}, '', path);
+        }
+        setState(prev => ({ ...prev, screen }));
+    };
     const setUploadedImage = (image) => setState(prev => ({ ...prev, uploadedImage: image }));
-    const setAnalysisResult = (result) => setState(prev => ({ ...prev, analysisResult: result }));
     const setSelectedTheme = (theme) => setState(prev => ({ ...prev, selectedTheme: theme }));
+    const setGeneratedImage = (image) => setState(prev => ({ ...prev, generatedImage: image }));
+    const setVerifiedEmail = (email) => setState(prev => ({ ...prev, verifiedEmail: email }));
 
     const resetApp = () => {
         setState({
             screen: 'scan',
             uploadedImage: null,
-            analysisResult: null,
-            selectedTheme: null
+            selectedTheme: null,
+            generatedImage: null,
+            verifiedEmail: ''
         });
     };
 
@@ -30,8 +41,9 @@ export const AppProvider = ({ children }) => {
             ...state,
             setScreen,
             setUploadedImage,
-            setAnalysisResult,
             setSelectedTheme,
+            setGeneratedImage,
+            setVerifiedEmail,
             resetApp
         }}>
             {children}

@@ -1,11 +1,8 @@
-/* eslint-disable react/prop-types */
 import { useState, useRef, useCallback, useEffect } from "react";
 import Cropper from 'react-easy-crop';
 import { Button } from "../components/ui/Button";
 import { Camera, Image as ImageIcon, ScanLine, Loader2, ArrowLeft, Upload, ZoomIn, RotateCw, Check } from "lucide-react";
-import { motion } from "framer-motion";
 import { useApp } from "../context/AppContext";
-import { calculateScore } from "../utils/logicEngine";
 
 const readExifOrientation = (buffer) => {
     const view = new DataView(buffer);
@@ -68,7 +65,7 @@ const correctImageOrientation = (file) => new Promise((resolve, reject) => {
 });
 
 export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
-    const { setScreen, setUploadedImage, setAnalysisResult } = useApp();
+    const { setScreen, setUploadedImage } = useApp();
     const [isScanning, setIsScanning] = useState(false);
     const [preview, setPreview] = useState(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -162,10 +159,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         if (!isAgreed) return;
         setIsScanning(true);
         scanTimerRef.current = setTimeout(() => {
-            const mockName = "setup_" + Date.now();
-            const result = calculateScore(mockName);
-            setAnalysisResult(result);
-            setScreen('analysis');
+            setScreen('themes');
         }, 2000);
     };
 
@@ -181,7 +175,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                 <button onClick={() => setScreen('welcome')} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                     <ArrowLeft className="w-5 h-5 text-gray-400" />
                 </button>
-                <h2 className="text-xl font-display font-bold">Scan Your Station</h2>
+                <h2 className="text-xl font-display font-bold">Transform your space</h2>
                 <div className="w-9" />
             </header>
 
@@ -225,7 +219,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                     <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto px-6 gap-4 overflow-hidden">
                         <div className="text-center space-y-1">
                             <p className="text-gray-400 text-sm">Upload a clear photo of your desk</p>
-                            <p className="text-gray-500 text-xs">to generate your aesthetic score.</p>
+                            <p className="text-gray-500 text-xs">to start designing your dream room.</p>
                             {fileError && <p className="text-red-400 text-xs font-semibold mt-1">{fileError}</p>}
                         </div>
 
@@ -266,7 +260,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                             </Button>
                         </div>
 
-                        {/* Terms and Privacy Checkbox */}
                         <div className="flex items-start gap-2 mb-4 px-1">
                             <input
                                 type="checkbox"
@@ -289,12 +282,12 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                             {isScanning ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    Analyzing...
+                                    Building your design...
                                 </>
                             ) : (
                                 <>
                                     <ScanLine className="w-5 h-5" />
-                                    Analyze Setup
+                                    Start Designing
                                 </>
                             )}
                         </Button>
