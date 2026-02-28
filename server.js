@@ -27,7 +27,14 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
-app.use(cors({ origin: '*' }));
+app.use(cors({
+    origin: [
+        'https://setupaura.online',
+        'https://www.setupaura.online',
+        'http://localhost:5173'
+    ],
+    credentials: true
+}));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
@@ -41,13 +48,13 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 
 const LEADS_FILE = path.join(__dirname, 'leads.json');
 const ADMIN_EMAIL = 'liorma6@gmail.com';
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
 const readLeads = async () => {
     try {
         const raw = await fs.promises.readFile(LEADS_FILE, 'utf8');
         const parsed = JSON.parse(raw);
-        let leads = parsed;
-        if (!Array.isArray(leads)) leads = [];
+        const leads = ensureArray(parsed);
         console.log(`[Leads] Loaded: ${leads.length}`);
         return leads;
     } catch {
@@ -56,9 +63,7 @@ const readLeads = async () => {
 };
 
 const saveLead = async (email) => {
-    let leads = await readLeads();
-    if (!Array.isArray(leads)) leads = [];
-    const safeLeads = leads;
+    const safeLeads = ensureArray(await readLeads());
     if (safeLeads.some(l => l.email?.toLowerCase() === email.toLowerCase())) return;
     safeLeads.push({ email, timestamp: new Date().toISOString() });
     await fs.promises.writeFile(LEADS_FILE, JSON.stringify(safeLeads, null, 2));
@@ -288,8 +293,7 @@ app.post('/api/generate-design', async (req, res) => {
         const hasUnlockedAccess = isUserAdmin || isPaidPremiumUser;
 
         if (!hasUnlockedAccess) {
-            let leads = await readLeads();
-            if (!Array.isArray(leads)) leads = [];
+            const leads = ensureArray(await readLeads());
             if (leads.some(l => l.email?.toLowerCase() === normalizedEmail)) {
                 console.log(`[Paywall] Blocked: ${email}`);
                 return res.status(403).json({ error: 'Trial used', paywall: true });
