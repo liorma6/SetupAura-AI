@@ -5,7 +5,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
 import nodemailer from "nodemailer";
+import multer from "multer";
 import OpenAI, { toFile } from "openai";
+import sharp from "sharp";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const require = createRequire(import.meta.url);
@@ -52,16 +54,33 @@ if (!fs.existsSync(METADATA_DIR))
   fs.mkdirSync(METADATA_DIR, { recursive: true });
 app.use("/uploads", express.static(UPLOADS_DIR));
 
-const LEADS_FILE = path.join(__dirname, "leads.json");
+const uploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDestination = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadDestination))
+      fs.mkdirSync(uploadDestination, { recursive: true });
+    cb(null, uploadDestination);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+    cb(
+      null,
+      `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`,
+    );
+  },
+});
+const upload = multer({ storage: uploadStorage });
+const leadsPath = path.join(__dirname, "leads.json");
+const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
 const ADMIN_EMAIL = "liorma6@gmail.com";
 
-const readLeads = async () => {
+const readLeads = () => {
   try {
-    if (!fs.existsSync(LEADS_FILE)) {
-      await fs.promises.writeFile(LEADS_FILE, "[]");
+    if (!fs.existsSync(leadsPath)) {
+      fs.writeFileSync(leadsPath, "[]");
       return [];
     }
-    const raw = await fs.promises.readFile(LEADS_FILE, "utf8");
+    const raw = fs.readFileSync(leadsPath, "utf8");
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -69,9 +88,9 @@ const readLeads = async () => {
   }
 };
 
-const saveLead = async (email) => {
+const saveLead = (email) => {
   try {
-    const safeLeads = await readLeads();
+    const safeLeads = readLeads();
     if (
       safeLeads.some(
         (l) => l && l.email && l.email.toLowerCase() === email.toLowerCase(),
@@ -79,7 +98,7 @@ const saveLead = async (email) => {
     )
       return;
     safeLeads.push({ email, timestamp: new Date().toISOString() });
-    await fs.promises.writeFile(LEADS_FILE, JSON.stringify(safeLeads, null, 2));
+    fs.writeFileSync(leadsPath, JSON.stringify(safeLeads, null, 2));
     console.log(`[Lead] Saved: ${email}`);
   } catch (err) {
     console.error("[LEAD_SAVE_ERROR]", err.message);
@@ -364,10 +383,36 @@ const analyzeRoomWithGemini = async ({ mimeType, data, selectedTheme }) => {
   return shoppingList;
 };
 
-app.post("/api/generate-design", async (req, res) => {
-  const { image, email, theme } = req.body;
+const applyWatermarkForFreeUser = async (imageBuffer) => {
+  const metadata = await sharp(imageBuffer).metadata();
+  const baseWidth = Math.max(metadata.width || 1024, 1);
+  const watermarkWidth = Math.max(Math.round(baseWidth * 0.16), 96);
+  const logoBuffer = fs.readFileSync(WATERMARK_LOGO_PATH);
+  const watermarkBuffer = await sharp(logoBuffer)
+    .resize({ width: watermarkWidth, fit: "contain" })
+    .ensureAlpha(0.35)
+    .png()
+    .toBuffer();
 
-  if (!image) return res.status(400).json({ error: "No image provided" });
+  return sharp(imageBuffer)
+    .composite([{ input: watermarkBuffer, gravity: "southeast" }])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+};
+
+app.post(
+  "/api/generate-design",
+  (req, res, next) => {
+    const contentType = req.headers["content-type"] || "";
+    if (contentType.includes("multipart/form-data")) {
+      return upload.single("image")(req, res, next);
+    }
+    return next();
+  },
+  async (req, res) => {
+  const { image, email, theme } = req.body || {};
+
+  if (!image && !req.file) return res.status(400).json({ error: "No image provided" });
   if (!email || email.trim() === "")
     return res.status(400).json({ error: "Email required" });
 
@@ -386,7 +431,7 @@ app.post("/api/generate-design", async (req, res) => {
     const hasUnlockedAccess = isUserAdmin || isPaidPremiumUser;
 
     if (!hasUnlockedAccess) {
-      const leads = await readLeads();
+      const leads = readLeads();
       if (
         leads.some(
           (l) => l && l.email && l.email.toLowerCase() === normalizedEmail,
@@ -397,12 +442,34 @@ app.post("/api/generate-design", async (req, res) => {
       }
     }
 
-    const base64Data = image.includes(";base64,")
-      ? image.split(";base64,").pop()
-      : image;
-    const imageBuffer = Buffer.from(base64Data, "base64");
-    const imageFile = await toFile(imageBuffer, "input.png", {
-      type: "image/png",
+    let imageBuffer;
+    let inputFilename = "input.jpg";
+    let inputMimeType = "image/jpeg";
+
+    if (req.file?.path) {
+      imageBuffer = fs.readFileSync(req.file.path);
+      inputFilename = req.file.originalname || path.basename(req.file.path);
+      inputMimeType =
+        req.file.mimetype || detectMimeType(req.file.originalname || "");
+    } else {
+      const imageString = String(image || "");
+      const hasPrefix = imageString.includes(";base64,");
+      const base64Data = hasPrefix
+        ? imageString.split(";base64,").pop()
+        : imageString;
+      const mimeTypeMatch = hasPrefix
+        ? imageString.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)
+        : null;
+      inputMimeType = mimeTypeMatch?.[1] || "image/jpeg";
+      imageBuffer = Buffer.from(base64Data, "base64");
+      const extFromMime = inputMimeType.split("/")[1] || "jpg";
+      inputFilename = `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extFromMime}`;
+      fs.writeFileSync(path.join(UPLOADS_DIR, inputFilename), imageBuffer);
+    }
+
+    const base64Data = imageBuffer.toString("base64");
+    const imageFile = await toFile(imageBuffer, inputFilename, {
+      type: inputMimeType,
     });
 
     const openai = new OpenAI({ apiKey: token });
@@ -477,8 +544,11 @@ app.post("/api/generate-design", async (req, res) => {
     const filename = `gen-${Date.now()}.jpg`;
     const filepath = path.join(IMAGES_DIR, filename);
     const generatedBuffer = Buffer.from(generatedBase64, "base64");
+    const finalGeneratedBuffer = hasUnlockedAccess
+      ? generatedBuffer
+      : await applyWatermarkForFreeUser(generatedBuffer);
     fs.promises
-      .writeFile(filepath, generatedBuffer)
+      .writeFile(filepath, finalGeneratedBuffer)
       .then(() => console.log(`[Saved] ${filepath}`))
       .catch((err) => console.error("[SAVE_IMAGE_ERROR]", err));
     const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
@@ -512,9 +582,7 @@ app.post("/api/generate-design", async (req, res) => {
     const lockedShoppingList = buildLockedShoppingList();
 
     if (!hasUnlockedAccess) {
-      saveLead(email.trim()).catch((err) =>
-        console.error("[LEAD_SAVE_ERROR]", err),
-      );
+      saveLead(email.trim());
     }
 
     res.json({
@@ -524,6 +592,7 @@ app.post("/api/generate-design", async (req, res) => {
     });
 
     if (process.env.EMAIL_USER && email) {
+      const redirectLink = `${process.env.FRONTEND_URL}/pricing`;
       const adminEmailBody = `
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
                         <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>
@@ -543,7 +612,7 @@ app.post("/api/generate-design", async (req, res) => {
                         <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
                         ${renderShoppingListHtml(lockedShoppingList, false)}
                         <div style="margin-top:20px;text-align:center;">
-                            <a href="${PRICING_URL}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">Unlock Your Full Shopping List</a>
+                            <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">Unlock Your Full Shopping List</a>
                         </div>
                     </div>
                 `;
@@ -558,7 +627,7 @@ app.post("/api/generate-design", async (req, res) => {
           attachments: [
             {
               filename: "your-design.jpg",
-              content: generatedBuffer,
+              content: finalGeneratedBuffer,
               cid: "design_image",
             },
           ],
@@ -575,7 +644,8 @@ app.post("/api/generate-design", async (req, res) => {
       });
     }
   }
-});
+  },
+);
 
 app.post("/api/analyze-room", async (req, res) => {
   const { image, imageUrl, selectedTheme } = req.body || {};

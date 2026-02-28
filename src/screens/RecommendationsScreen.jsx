@@ -44,6 +44,7 @@ export const RecommendationsScreen = () => {
     const [otpCooldown, setOtpCooldown] = useState(0);
     const otpRefs = useRef([]);
     const cooldownRef = useRef(null);
+    const isGeneratingRef = useRef(false);
 
     const toBase64 = useCallback((blobUrl) => new Promise((resolve, reject) => {
         fetch(blobUrl)
@@ -96,6 +97,10 @@ export const RecommendationsScreen = () => {
     }, []);
 
     const generateForEmail = useCallback(async (emailToUse) => {
+        if (isGeneratingRef.current) {
+            return;
+        }
+
         if (!uploadedImage) {
             setError('No image found. Please go back and upload a photo of your setup.');
             setFlow('email');
@@ -110,6 +115,7 @@ export const RecommendationsScreen = () => {
 
         setFlow('loading');
         setError('');
+        isGeneratingRef.current = true;
 
         try {
             let imagePayload = uploadedImage;
@@ -163,6 +169,8 @@ export const RecommendationsScreen = () => {
             }
             setError(`Load failed. URL: ${API_URL}/api/generate-design`);
             setFlow('email');
+        } finally {
+            isGeneratingRef.current = false;
         }
     }, [uploadedImage, selectedTheme, setGeneratedImage, setScreen, toBase64]);
 
@@ -302,7 +310,7 @@ export const RecommendationsScreen = () => {
                 try { localStorage.setItem('userEmail', ADMIN_EMAIL); } catch { }
             }
             setVerifiedEmail(verified);
-            setFlow('loading');
+            await generateForEmail(verified);
         } catch (error) {
             console.error('DEBUG: Full Error Object:', error);
             if (error.response) {

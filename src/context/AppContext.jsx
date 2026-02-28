@@ -16,7 +16,7 @@ const getInitialState = () => {
     };
 
     try {
-        const raw = localStorage.getItem(APP_STATE_KEY);
+        const raw = sessionStorage.getItem(APP_STATE_KEY);
         if (!raw) return fallbackState;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return fallbackState;
@@ -37,7 +37,7 @@ export const AppProvider = ({ children }) => {
 
     useEffect(() => {
         try {
-            localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+            sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
         } catch {}
     }, [state]);
 
@@ -63,7 +63,7 @@ export const AppProvider = ({ children }) => {
         };
         setState(resetState);
         try {
-            localStorage.setItem(APP_STATE_KEY, JSON.stringify(resetState));
+            sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(resetState));
         } catch {}
     };
 
