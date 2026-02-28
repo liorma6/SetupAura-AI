@@ -266,11 +266,11 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
 
 const SHARED_THEME_CONFIG = {
   MODERN_GAMING: {
-    label: "MODERN GAMING",
+    label: "ULTIMATE CYBERPUNK RGB STREAMER ROOM",
     heroItems: [
-      "Nanoleaf Shapes RGB Panels",
-      "Secretlab TITAN Evo Chair",
-      "Logitech G502 Mouse",
+      "Immersive Wall-to-Wall Neon RGB Lighting Panels (Nanoleaf style)",
+      "Massive Triple-Monitor Curved Setup with Glowing Liquid-Cooled PC Tower",
+      "Acoustic Foam Hexagon Wall Panels with LED Strips",
     ],
   },
   ANIME: {
