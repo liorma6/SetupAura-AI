@@ -139,6 +139,11 @@ export const RecommendationsScreen = () => {
 
             const data = await res.json();
 
+            if (res.status === 403 && (data.error === 'OUT_OF_TOKENS' || data.paywall)) {
+                setScreen('pricing');
+                return;
+            }
+
             if (res.status === 400 && data.error === 'INVALID_IMAGE') {
                 setError(data.message);
                 setFlow('email');
@@ -147,6 +152,10 @@ export const RecommendationsScreen = () => {
 
             if (!res.ok) {
                 throw new Error(data.error || 'Generation failed');
+            }
+
+            if (!data?.imageUrl) {
+                throw new Error('Generation succeeded but no image URL was returned');
             }
 
             setGeneratedImage(data.imageUrl);

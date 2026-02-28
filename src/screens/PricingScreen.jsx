@@ -1,5 +1,6 @@
 import { Check, Crown, Star, Zap } from 'lucide-react';
 import { usePostHog } from '@posthog/react';
+import { useApp } from '../context/AppContext';
 
 const tiers = [
     {
@@ -10,6 +11,7 @@ const tiers = [
         features: ['10 AI design generations', '1 premium theme unlock', 'Priority rendering'],
         color: 'from-cyan-500 to-blue-600',
         popular: false,
+        tokens: 10,
         checkoutUrl: 'https://liorma.gumroad.com/l/setupaura-starter',
     },
     {
@@ -20,6 +22,7 @@ const tiers = [
         features: ['40 AI design generations', 'All premium themes', 'Exact-match shopping list'],
         color: 'from-fuchsia-500 to-purple-600',
         popular: true,
+        tokens: 40,
         checkoutUrl: 'https://liorma.gumroad.com/l/setupaura-pro',
     },
     {
@@ -30,6 +33,7 @@ const tiers = [
         features: ['100 AI design generations', 'Everything in Pro', 'Early access to new drops'],
         color: 'from-amber-400 to-orange-600',
         popular: false,
+        tokens: 100,
         checkoutUrl: 'https://liorma.gumroad.com/l/setupaura-elite',
     },
 ];
@@ -42,12 +46,20 @@ const tierIcon = {
 
 export const PricingScreen = () => {
     const posthog = usePostHog();
+    const { verifiedEmail, addTokens, setIsPremium, setScreen } = useApp();
+    const isAdmin = (verifiedEmail || '').trim().toLowerCase() === 'liorma6@gmail.com';
 
-    const handleCheckoutClick = (tier) => {
+    const handleCheckoutClick = (tier, e) => {
         const value = Number(String(tier.price).replace(/[^0-9.]/g, '')) || 0;
         posthog.capture('InitiateCheckout', { tier: tier.name, value, currency: 'USD' });
         if (typeof window !== 'undefined' && window.fbq) {
             window.fbq('track', 'InitiateCheckout', { content_name: tier.name, value, currency: 'USD' });
+        }
+        if (isAdmin) {
+            e.preventDefault();
+            addTokens(tier.tokens);
+            setIsPremium(true);
+            setScreen('result');
         }
     };
 
@@ -103,7 +115,7 @@ export const PricingScreen = () => {
                                     href={tier.checkoutUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={() => handleCheckoutClick(tier)}
+                                    onClick={(e) => handleCheckoutClick(tier, e)}
                                     className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}
                                 >
                                     Upgrade Now

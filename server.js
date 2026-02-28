@@ -16,8 +16,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
-const LIVE_SERVER_URL = "https://setupaura.ai";
-const PRICING_URL = `${LIVE_SERVER_URL}/pricing`;
+const SUCCESS_URL = "https://www.setupaura.online/";
+const PRICING_URL = "https://www.setupaura.online/pricing";
 
 const otpStore = new Map();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,16 +92,23 @@ const readLeads = () => {
 const saveLead = (email) => {
   try {
     const normalizedEmail = String(email || "").trim();
-    const newLead = { email: normalizedEmail, timestamp: new Date().toISOString() };
-    if (fs.existsSync(leadsPath)) {
-      const raw = fs.readFileSync(leadsPath, "utf8");
-      const parsed = JSON.parse(raw);
-      const leads = Array.isArray(parsed) ? parsed : [];
-      leads.push(newLead);
-      fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
-    } else {
-      fs.writeFileSync(leadsPath, JSON.stringify([newLead], null, 2));
-    }
+    const leads = readLeads();
+    const exists = leads.some(
+      (entry) =>
+        entry &&
+        entry.email &&
+        entry.email.toLowerCase() === normalizedEmail.toLowerCase(),
+    );
+    if (exists) return;
+    const newLead = {
+      email: normalizedEmail,
+      timestamp: new Date().toISOString(),
+      premium: false,
+      tokensRemaining: 0,
+      testMode: false,
+    };
+    leads.push(newLead);
+    fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
     console.log(`[Lead] Saved: ${email}`);
   } catch (err) {
     console.error("[LEAD_SAVE_ERROR]", err.message);
@@ -141,31 +148,16 @@ const upsertLeadRecord = (email, updates = {}) => {
 
 const getUserRecord = (email) => {
   const normalized = String(email || "").trim().toLowerCase();
-  const isTestUser = normalized === TEST_USER_EMAIL.toLowerCase();
-  const existing = readLeads().find(
+  return readLeads().find(
     (entry) => entry && entry.email && entry.email.toLowerCase() === normalized,
   );
-  if (existing) {
-    if (isTestUser && Number(existing.tokensRemaining || 0) < 10) {
-      return upsertLeadRecord(email, {
-        premium: true,
-        testMode: true,
-        tokensRemaining: 10,
-      });
-    }
-    return existing;
-  }
-  return upsertLeadRecord(email, {
-    premium: isTestUser,
-    testMode: isTestUser,
-    tokensRemaining: isTestUser ? 10 : 5,
-  });
 };
 
 const buildFrontendUrl = (targetPath = "/") => {
-  const base = String(process.env.FRONTEND_URL || "").trim().replace(/\/+$/, "");
-  const safePath = `/${String(targetPath || "/").replace(/^\/+/, "")}`;
-  return `${base}${safePath === "/" ? "/" : safePath}`;
+  const pathValue = String(targetPath || "/").trim();
+  if (!pathValue || pathValue === "/") return SUCCESS_URL;
+  if (pathValue === "/pricing") return PRICING_URL;
+  return SUCCESS_URL;
 };
 
 const transporter = nodemailer.createTransport({
@@ -425,7 +417,7 @@ const analyzeRoomWithGemini = async ({ mimeType, data, selectedTheme }) => {
 
   const config = resolveThemeConfig(selectedTheme);
   const [item1, item2, item3] = config.heroItems;
-  const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. Return ONLY a JSON array. For buyLink, generate a specific Amazon search URL: https://www.amazon.com/s?k=[PRODUCT_NAME].`;
+  const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. You MUST include a product entry named Premium Gaming Chair with a matching aesthetic and a shopping link. Return ONLY a JSON array. For buyLink, generate a specific Amazon search URL: https://www.amazon.com/s?k=[PRODUCT_NAME].`;
 
   const result = await model.generateContent([
     { text: prompt },
@@ -485,20 +477,18 @@ app.post(
   try {
     const normalizedEmail = email.trim().toLowerCase();
     const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
-    const userRecord = getUserRecord(email.trim());
-    const isTestMode = Boolean(userRecord?.testMode);
-    let isPremiumUser = Boolean(userRecord?.premium);
-    const isPaidPremiumUser = Boolean(
-      req.body?.isPaidPremiumUser ||
-      req.body?.isPremiumUser ||
-      req.body?.paidPremiumUser ||
-      req.body?.hasPaidAccess,
-    );
-    if (isPaidPremiumUser && !isPremiumUser) {
-      const updated = upsertLeadRecord(email.trim(), { premium: true });
-      isPremiumUser = Boolean(updated.premium);
+    const existingLead = getUserRecord(email.trim());
+    const isTestMode = normalizedEmail === TEST_USER_EMAIL.toLowerCase();
+    const isPremiumUser = Boolean(existingLead?.premium || isTestMode);
+    const hasUnlockedAccess = isUserAdmin || isPremiumUser;
+
+    if (!isUserAdmin && !isPremiumUser && existingLead) {
+      return res.status(403).json({
+        error: "OUT_OF_TOKENS",
+        message: "Out of tokens",
+        paywall: true,
+      });
     }
-    const hasUnlockedAccess = isUserAdmin || isPremiumUser || isTestMode;
 
     let imageBuffer;
     let inputFilename = "input.jpg";
@@ -580,7 +570,7 @@ app.post(
     const themeConfig = resolveThemeConfig(activeTheme);
     const [item1, item2, item3] = themeConfig.heroItems;
 
-    const enhancedPrompt = `A professional interior photograph of a high-end gaming room. NOT A DRAWING. Hyper-realistic, 8K resolution. Base: Dual monitors, mechanical keyboard, and PC tower. Theme: ${themeConfig.label}. Features: ${item1}, ${item2}, and ${item3} in realistic proportions (no oversized statues). Constraints: Maintain exact room layout from the uploaded image. Ensure clear ambient lighting. Furniture must not overlap (chair and bed must be separate and aesthetic).`;
+    const enhancedPrompt = `A professional interior photograph of a high-end gaming room. NOT A DRAWING. Hyper-realistic, 8K resolution. Base: Dual monitors, mechanical keyboard, and PC tower. Theme: ${themeConfig.label}. Features: ${item1}, ${item2}, and ${item3} in realistic proportions (no oversized statues). Constraints: Maintain exact room layout from the uploaded image. Ensure clear ambient lighting. Furniture must not overlap (chair and bed must be separate and aesthetic). You MUST explicitly upgrade the chair in the room to a premium, high-end gaming chair. If the original image lacks a chair, you MUST add a premium gaming chair to the setup. In your structured response/product recommendations, you MUST include a product entry for a 'Premium Gaming Chair' with a matching aesthetic and a shopping link.`;
 
     const TIMEOUT_MS = 90000;
     const aiResponse = await Promise.race([
@@ -639,19 +629,17 @@ app.post(
 
     const lockedShoppingList = buildLockedShoppingList();
 
-    let tokensRemaining = Number(userRecord?.tokensRemaining ?? 5);
-    if (!hasUnlockedAccess) {
-      tokensRemaining = Math.max(0, tokensRemaining - 1);
-    } else if (isTestMode) {
-      tokensRemaining = Math.max(10, tokensRemaining);
-    }
-    upsertLeadRecord(email.trim(), {
-      premium: isPremiumUser || isUserAdmin || isTestMode,
-      testMode: isTestMode,
-      tokensRemaining,
-    });
-    if (!hasUnlockedAccess) {
+    let tokensRemaining = Number(existingLead?.tokensRemaining ?? 0);
+    if (!isUserAdmin && !isPremiumUser) {
       saveLead(email.trim());
+      tokensRemaining = 0;
+    } else {
+      upsertLeadRecord(email.trim(), {
+        premium: true,
+        testMode: isTestMode,
+        tokensRemaining: Math.max(0, Number(existingLead?.tokensRemaining ?? 0)),
+      });
+      tokensRemaining = Math.max(0, Number(existingLead?.tokensRemaining ?? 0));
     }
 
     res.json({
@@ -659,14 +647,12 @@ app.post(
       shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
       shoppingListUnlocked: hasUnlockedAccess,
       tokensRemaining,
-      isPremium: Boolean(isPremiumUser || isUserAdmin || isTestMode),
+      isPremium: Boolean(isPremiumUser || isUserAdmin),
       testMode: isTestMode,
     });
 
     if (process.env.EMAIL_USER && email) {
-      const redirectLink = isPremiumUser || isUserAdmin || isTestMode
-        ? buildFrontendUrl("/")
-        : buildFrontendUrl("/pricing");
+      const redirectLink = buildFrontendUrl("/");
       const adminEmailBody = `
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
                         <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>
@@ -674,7 +660,7 @@ app.post(
                         <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
                         ${renderShoppingListHtml(fullShoppingList, true)}
                         <div style="margin-top:18px;">
-                            <a href="${LIVE_SERVER_URL}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open SetupAura</a>
+                            <a href="${SUCCESS_URL}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open SetupAura</a>
                         </div>
                     </div>
                 `;
@@ -686,7 +672,7 @@ app.post(
                         <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
                         ${renderShoppingListHtml(lockedShoppingList, false)}
                         <div style="margin-top:20px;text-align:center;">
-                            <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">Unlock Your Full Shopping List</a>
+                            <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Your Result</a>
                         </div>
                     </div>
                 `;

@@ -67,6 +67,10 @@ export const AppProvider = ({ children }) => {
         ...prev,
         tokensRemaining: Math.max(0, Number.isFinite(tokens) ? Math.floor(tokens) : prev.tokensRemaining)
     }));
+    const addTokens = (tokens) => setState(prev => ({
+        ...prev,
+        tokensRemaining: Math.max(0, (Number(prev.tokensRemaining) || 0) + Math.max(0, Number(tokens) || 0))
+    }));
     const decrementTokens = () => setState(prev => ({
         ...prev,
         tokensRemaining: Math.max(0, (Number(prev.tokensRemaining) || 0) - 1)
@@ -98,6 +102,7 @@ export const AppProvider = ({ children }) => {
             setGeneratedImage,
             setVerifiedEmail,
             setTokensRemaining,
+            addTokens,
             decrementTokens,
             setIsPremium,
             resetApp
