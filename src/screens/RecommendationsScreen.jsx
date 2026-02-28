@@ -49,10 +49,34 @@ export const RecommendationsScreen = () => {
         fetch(blobUrl)
             .then(r => r.blob())
             .then(blob => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
+                const imgUrl = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => {
+                    const maxSize = 1200;
+                    const width = img.width || 1;
+                    const height = img.height || 1;
+                    const scale = Math.min(1, maxSize / Math.max(width, height));
+                    const targetWidth = Math.max(1, Math.round(width * scale));
+                    const targetHeight = Math.max(1, Math.round(height * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        URL.revokeObjectURL(imgUrl);
+                        reject(new Error('Canvas not supported'));
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                    URL.revokeObjectURL(imgUrl);
+                    resolve(compressedBase64);
+                };
+                img.onerror = (error) => {
+                    URL.revokeObjectURL(imgUrl);
+                    reject(error);
+                };
+                img.src = imgUrl;
             })
             .catch(reject);
     }), []);

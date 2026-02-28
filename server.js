@@ -444,12 +444,10 @@ app.post("/api/generate-design", async (req, res) => {
 
     if (!isValidRoom) {
       console.log(`[Validation] Invalid image rejected for: ${email}`);
-      return res
-        .status(400)
-        .json({
-          error: "INVALID_IMAGE",
-          message: "Please upload a picture of a room.",
-        });
+      return res.status(400).json({
+        error: "INVALID_IMAGE",
+        message: "Please upload a picture of a room.",
+      });
     }
 
     const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
@@ -483,7 +481,7 @@ app.post("/api/generate-design", async (req, res) => {
       .writeFile(filepath, generatedBuffer)
       .then(() => console.log(`[Saved] ${filepath}`))
       .catch((err) => console.error("[SAVE_IMAGE_ERROR]", err));
-    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/images/${filename}`;
+    const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
 
     let fullShoppingList = [];
     try {
@@ -571,12 +569,10 @@ app.post("/api/generate-design", async (req, res) => {
   } catch (error) {
     console.error("[ERROR]", error.message);
     if (!res.headersSent) {
-      return res
-        .status(500)
-        .json({
-          error: "SERVER_ERROR",
-          message: "An unexpected server error occurred.",
-        });
+      return res.status(500).json({
+        error: "SERVER_ERROR",
+        message: "An unexpected server error occurred.",
+      });
     }
   }
 });
@@ -640,12 +636,10 @@ app.post("/api/send-otp", async (req, res) => {
   if (!email || email.trim() === "")
     return res.status(400).json({ error: "Email required" });
   if (!EMAIL_REGEX.test(email.trim()))
-    return res
-      .status(400)
-      .json({
-        error: "INVALID_EMAIL_FORMAT",
-        message: "Please enter a valid email address.",
-      });
+    return res.status(400).json({
+      error: "INVALID_EMAIL_FORMAT",
+      message: "Please enter a valid email address.",
+    });
   const normalizedEmail = email.trim().toLowerCase();
   const existing = otpStore.get(normalizedEmail);
   if (
@@ -656,12 +650,10 @@ app.post("/api/send-otp", async (req, res) => {
     const waitSeconds = Math.ceil(
       (30000 - (Date.now() - existing.sentAt)) / 1000,
     );
-    return res
-      .status(429)
-      .json({
-        error: "COOLDOWN",
-        message: `Please wait ${waitSeconds} seconds before requesting a new code.`,
-      });
+    return res.status(429).json({
+      error: "COOLDOWN",
+      message: `Please wait ${waitSeconds} seconds before requesting a new code.`,
+    });
   }
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expires = Date.now() + 10 * 60 * 1000;
@@ -689,12 +681,10 @@ app.post("/api/send-otp", async (req, res) => {
   } catch (err) {
     console.error("[OTP Email] Failed:", err.message);
     otpStore.delete(normalizedEmail);
-    res
-      .status(500)
-      .json({
-        error: "EMAIL_FAILED",
-        message: "Failed to send email. Please try again.",
-      });
+    res.status(500).json({
+      error: "EMAIL_FAILED",
+      message: "Failed to send email. Please try again.",
+    });
   }
 });
 
@@ -705,39 +695,31 @@ app.post("/api/verify-otp", (req, res) => {
   const normalizedEmail = email.trim().toLowerCase();
   const entry = otpStore.get(normalizedEmail);
   if (!entry)
-    return res
-      .status(400)
-      .json({
-        error: "INVALID_OTP",
-        message: "No code was sent to this email. Please request a new one.",
-      });
+    return res.status(400).json({
+      error: "INVALID_OTP",
+      message: "No code was sent to this email. Please request a new one.",
+    });
   if (Date.now() > entry.expires) {
     otpStore.delete(normalizedEmail);
-    return res
-      .status(400)
-      .json({
-        error: "EXPIRED_OTP",
-        message: "This code has expired. Please request a new one.",
-      });
+    return res.status(400).json({
+      error: "EXPIRED_OTP",
+      message: "This code has expired. Please request a new one.",
+    });
   }
   if (entry.code !== code.trim()) {
     entry.attempts = (entry.attempts || 0) + 1;
     if (entry.attempts >= 5) {
       otpStore.delete(normalizedEmail);
-      return res
-        .status(400)
-        .json({
-          error: "TOO_MANY_ATTEM পিক_ATTEMPTS",
-          message: "Too many incorrect attempts. Please request a new code.",
-        });
+      return res.status(400).json({
+        error: "TOO_MANY_ATTEM পিক_ATTEMPTS",
+        message: "Too many incorrect attempts. Please request a new code.",
+      });
     }
     const remaining = 5 - entry.attempts;
-    return res
-      .status(400)
-      .json({
-        error: "WRONG_OTP",
-        message: `Incorrect code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
-      });
+    return res.status(400).json({
+      error: "WRONG_OTP",
+      message: `Incorrect code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+    });
   }
   otpStore.delete(normalizedEmail);
   res.json({ success: true, verified: true });
@@ -749,12 +731,10 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
   console.error("[GLOBAL ERROR]", err.message);
-  return res
-    .status(err.status || 500)
-    .json({
-      error: "GLOBAL_SERVER_ERROR",
-      message: err.message || "An unexpected error occurred",
-    });
+  return res.status(err.status || 500).json({
+    error: "GLOBAL_SERVER_ERROR",
+    message: err.message || "An unexpected error occurred",
+  });
 });
 
 app.listen(PORT, "0.0.0.0", () =>
