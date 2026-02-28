@@ -4,6 +4,36 @@ import { Button } from "../components/ui/Button";
 import { Camera, Image as ImageIcon, ScanLine, Loader2, ArrowLeft, Upload, ZoomIn, RotateCw, Check } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const SUPPORTED_MIME_TYPES = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+]);
+const SUPPORTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
+const NON_CONVERTIBLE_EXTENSIONS = new Set(['heic', 'heif']);
+
+const getExtension = (name = '') => {
+    const parts = String(name).toLowerCase().split('.');
+    return parts.length > 1 ? parts.pop() : '';
+};
+
+const isSupportedImage = (file) => {
+    const ext = getExtension(file?.name || '');
+    const hasValidMime = file?.type ? SUPPORTED_MIME_TYPES.has(file.type.toLowerCase()) : false;
+    const hasValidExt = SUPPORTED_EXTENSIONS.has(ext);
+    return hasValidMime || hasValidExt;
+};
+
+const isHeicOrHeif = (file) => {
+    const ext = getExtension(file?.name || '');
+    const type = String(file?.type || '').toLowerCase();
+    return NON_CONVERTIBLE_EXTENSIONS.has(ext) || type === 'image/heic' || type === 'image/heif';
+};
+
 const readExifOrientation = (buffer) => {
     const view = new DataView(buffer);
     if (view.byteLength < 2 || view.getUint16(0, false) !== 0xFFD8) return 1;
@@ -31,12 +61,19 @@ const readExifOrientation = (buffer) => {
 
 const correctImageOrientation = (file) => new Promise((resolve, reject) => {
     const arrayReader = new FileReader();
-    arrayReader.onerror = reject;
+    arrayReader.onerror = (error) => {
+        console.error('DEBUG: FileReader Error:', error);
+        reject(error);
+    };
     arrayReader.onload = (e) => {
         const orientation = readExifOrientation(e.target.result);
         const blobUrl = URL.createObjectURL(file);
         const img = new Image();
-        img.onerror = reject;
+        img.onerror = (error) => {
+            console.error('DEBUG: FileReader Error:', error);
+            URL.revokeObjectURL(blobUrl);
+            reject(error);
+        };
         img.onload = () => {
             const swapped = orientation >= 5 && orientation <= 8;
             const naturalW = swapped ? img.height : img.width;
@@ -88,13 +125,18 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         const file = e.target.files[0];
         if (!file) return;
         setFileError('');
-        if (!file.type.startsWith('image/')) {
-            setFileError('Only image files are supported (JPG, PNG, WEBP, etc.)');
+        if (!isSupportedImage(file)) {
+            setFileError('Unsupported format. Please upload JPG, PNG, or WEBP.');
             e.target.value = '';
             return;
         }
-        if (file.size > 10 * 1024 * 1024) {
+        if (file.size > MAX_FILE_SIZE) {
             setFileError('File too large. Maximum size is 10MB.');
+            e.target.value = '';
+            return;
+        }
+        if (isHeicOrHeif(file)) {
+            setFileError('HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.');
             e.target.value = '';
             return;
         }
@@ -103,8 +145,9 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
             setAspectRatio(height > width ? 9 / 16 : 16 / 9);
             setPreview(dataUrl);
             setShowCropper(true);
-        } catch {
-            setFileError('Could not read this image. Please try another file.');
+        } catch (error) {
+            console.error('DEBUG: FileReader Error:', error);
+            setFileError('Could not read this image file. Please use a clear JPG, PNG, or WEBP image.');
             e.target.value = '';
         }
     };
@@ -295,7 +338,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                 </>
             )}
 
-            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif" className="hidden" />
         </div>
     );
 };
