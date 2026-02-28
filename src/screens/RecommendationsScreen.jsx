@@ -93,6 +93,7 @@ export const RecommendationsScreen = () => {
                 imagePayload = await toBase64(imagePayload);
             }
 
+            console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
             const res = await fetch(`${API_URL}/api/generate-design`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -126,8 +127,17 @@ export const RecommendationsScreen = () => {
                 markTrialUsed();
             }
             setScreen('result');
-        } catch (err) {
-            setError(err.message);
+        } catch (error) {
+            console.error('DEBUG: Full Error Object:', error);
+            if (error.response) {
+                console.error('DEBUG: Server responded with status:', error.response.status);
+                console.error('DEBUG: Server response data:', error.response.data);
+            } else if (error.request) {
+                console.error('DEBUG: No response received. Request details:', error.request);
+            } else {
+                console.error('DEBUG: Error setting up request:', error.message);
+            }
+            setError(`Load failed. URL: ${API_URL}/api/generate-design`);
             setFlow('email');
         }
     }, [uploadedImage, selectedTheme, setGeneratedImage, setScreen, toBase64]);
@@ -153,6 +163,7 @@ export const RecommendationsScreen = () => {
         setOtpError('');
 
         try {
+            console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
             const res = await fetch(`${API_URL}/api/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -165,8 +176,17 @@ export const RecommendationsScreen = () => {
             setOtpError('');
             setFlow('otp');
             startCooldown();
-        } catch (err) {
-            setOtpError(err.message);
+        } catch (error) {
+            console.error('DEBUG: Full Error Object:', error);
+            if (error.response) {
+                console.error('DEBUG: Server responded with status:', error.response.status);
+                console.error('DEBUG: Server response data:', error.response.data);
+            } else if (error.request) {
+                console.error('DEBUG: No response received. Request details:', error.request);
+            } else {
+                console.error('DEBUG: Error setting up request:', error.message);
+            }
+            setOtpError(`Load failed. URL: ${API_URL}/api/send-otp`);
         } finally {
             setSendingOtp(false);
         }
@@ -177,6 +197,7 @@ export const RecommendationsScreen = () => {
         setSendingOtp(true);
         setOtpError('');
         try {
+            console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
             const res = await fetch(`${API_URL}/api/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -186,8 +207,17 @@ export const RecommendationsScreen = () => {
             if (!res.ok) throw new Error(data.error || 'Failed to resend code');
             setOtpDigits(['', '', '', '', '', '']);
             startCooldown();
-        } catch (err) {
-            setOtpError(err.message);
+        } catch (error) {
+            console.error('DEBUG: Full Error Object:', error);
+            if (error.response) {
+                console.error('DEBUG: Server responded with status:', error.response.status);
+                console.error('DEBUG: Server response data:', error.response.data);
+            } else if (error.request) {
+                console.error('DEBUG: No response received. Request details:', error.request);
+            } else {
+                console.error('DEBUG: Error setting up request:', error.message);
+            }
+            setOtpError(`Load failed. URL: ${API_URL}/api/send-otp`);
         } finally {
             setSendingOtp(false);
         }
@@ -230,6 +260,7 @@ export const RecommendationsScreen = () => {
         setOtpError('');
 
         try {
+            console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
             const res = await fetch(`${API_URL}/api/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -248,8 +279,17 @@ export const RecommendationsScreen = () => {
             }
             setVerifiedEmail(verified);
             setFlow('loading');
-        } catch {
-            setOtpError('Network error. Please try again.');
+        } catch (error) {
+            console.error('DEBUG: Full Error Object:', error);
+            if (error.response) {
+                console.error('DEBUG: Server responded with status:', error.response.status);
+                console.error('DEBUG: Server response data:', error.response.data);
+            } else if (error.request) {
+                console.error('DEBUG: No response received. Request details:', error.request);
+            } else {
+                console.error('DEBUG: Error setting up request:', error.message);
+            }
+            setOtpError(`Load failed. URL: ${API_URL}/api/verify-otp`);
         } finally {
             setOtpLoading(false);
         }

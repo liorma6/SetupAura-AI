@@ -74,6 +74,11 @@ const InnerApp = () => {
     }
   }, [screen]);
 
+  const handleHomeClick = (e) => {
+    e.preventDefault();
+    setScreen('welcome');
+  };
+
   const renderScreen = () => {
     switch (screen) {
       case 'welcome':
@@ -119,7 +124,19 @@ const InnerApp = () => {
 
   return (
     <div className="mobile-wrapper flex flex-col relative overflow-hidden bg-background">
-      <div className="flex-1 overflow-hidden relative w-full">
+      <header className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-gray-800">
+        <div className="max-w-[480px] mx-auto h-16 px-4 flex items-center">
+          <a
+            href="/"
+            onClick={handleHomeClick}
+            className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.35)]"
+          >
+            SetupAura AI
+          </a>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-hidden relative w-full pt-20">
         <AnimatePresence mode="wait">
           {renderScreen()}
         </AnimatePresence>
