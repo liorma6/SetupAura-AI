@@ -114,7 +114,8 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
     const [aspectRatio, setAspectRatio] = useState(16 / 9);
     const [isAgreed, setIsAgreed] = useState(false);
 
-    const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
+    const uploadInputRef = useRef(null);
     const scanTimerRef = useRef(null);
 
     const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -152,7 +153,8 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         }
     };
 
-    const triggerFileInput = () => fileInputRef.current?.click();
+    const triggerCameraInput = () => cameraInputRef.current?.click();
+    const triggerUploadInput = () => uploadInputRef.current?.click();
 
     const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
         const image = new Image();
@@ -269,7 +271,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                         <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border border-dashed border-white/20 transition-colors hover:border-primary/30">
                             {!preview ? (
                                 <div
-                                    onClick={triggerFileInput}
+                                    onClick={triggerUploadInput}
                                     className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
                                 >
                                     <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
@@ -293,13 +295,13 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
                     <div className="w-full max-w-md mx-auto pb-10 pt-4 px-6 shrink-0">
                         <div className="grid grid-cols-2 gap-3 mb-3">
-                            <Button variant="outline" size="sm" onClick={triggerFileInput}>
+                            <Button variant="outline" size="sm" onClick={triggerCameraInput}>
                                 <Camera className="w-4 h-4" />
                                 Take Photo
                             </Button>
-                            <Button variant="outline" size="sm" onClick={triggerFileInput}>
+                            <Button variant="outline" size="sm" onClick={triggerUploadInput}>
                                 <ImageIcon className="w-4 h-4" />
-                                Gallery
+                                Upload Image
                             </Button>
                         </div>
 
@@ -338,7 +340,8 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                 </>
             )}
 
-            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif" className="hidden" />
+            <input type="file" ref={cameraInputRef} onChange={handleFileSelect} accept="image/*" capture="environment" className="hidden" />
+            <input type="file" ref={uploadInputRef} onChange={handleFileSelect} accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif" className="hidden" />
         </div>
     );
 };

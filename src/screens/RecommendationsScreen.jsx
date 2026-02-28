@@ -27,6 +27,9 @@ export const RecommendationsScreen = () => {
         verifiedEmail,
         setVerifiedEmail,
         setGeneratedImage,
+        setTokensRemaining,
+        decrementTokens,
+        setIsPremium,
         setScreen,
     } = useApp();
 
@@ -136,12 +139,6 @@ export const RecommendationsScreen = () => {
 
             const data = await res.json();
 
-            if (res.status === 403) {
-                markTrialUsed();
-                setScreen('pricing');
-                return;
-            }
-
             if (res.status === 400 && data.error === 'INVALID_IMAGE') {
                 setError(data.message);
                 setFlow('email');
@@ -153,6 +150,12 @@ export const RecommendationsScreen = () => {
             }
 
             setGeneratedImage(data.imageUrl);
+            if (typeof data.tokensRemaining === 'number') {
+                setTokensRemaining(data.tokensRemaining);
+            } else if (normalizedEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+                decrementTokens();
+            }
+            setIsPremium(Boolean(data.isPremium));
             if (normalizedEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
                 markTrialUsed();
             }
@@ -172,7 +175,7 @@ export const RecommendationsScreen = () => {
         } finally {
             isGeneratingRef.current = false;
         }
-    }, [uploadedImage, selectedTheme, setGeneratedImage, setScreen, toBase64]);
+    }, [uploadedImage, selectedTheme, setGeneratedImage, setTokensRemaining, decrementTokens, setIsPremium, setScreen, toBase64]);
 
     useEffect(() => {
         if (flow === 'loading' && verifiedEmail) {

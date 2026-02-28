@@ -1,7 +1,12 @@
-export const Header = ({ onHomeClick }) => {
+import { Menu } from 'lucide-react';
+
+export const Header = ({ onHomeClick, onMenuToggle }) => {
   return (
     <header className="fixed top-0 w-full z-50 h-16 bg-black/80 backdrop-blur-md border-b border-cyan-500/20 flex justify-center items-center">
-      <div className="w-full max-w-[480px] h-full flex items-center px-4">
+      <div className="w-full max-w-[480px] h-full flex items-center justify-between px-4">
+        <button onClick={onMenuToggle} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+          <Menu className="w-5 h-5 text-cyan-200" />
+        </button>
         <a
           href="/"
           onClick={onHomeClick}
@@ -12,6 +17,7 @@ export const Header = ({ onHomeClick }) => {
             SetupAura AI
           </span>
         </a>
+        <div className="w-9" />
       </div>
     </header>
   );

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const AppContext = createContext();
 const APP_STATE_KEY = 'setupaura_app_state';
+const TEST_USER_EMAIL = 'liorma6@gmail.com';
 
 const getInitialState = () => {
     const initialPath = window.location.pathname;
@@ -13,6 +14,8 @@ const getInitialState = () => {
         selectedTheme: null,
         generatedImage: null,
         verifiedEmail: '',
+        tokensRemaining: 5,
+        isPremium: false,
     };
 
     try {
@@ -26,6 +29,8 @@ const getInitialState = () => {
             selectedTheme: parsed.selectedTheme ?? null,
             generatedImage: parsed.generatedImage ?? null,
             verifiedEmail: typeof parsed.verifiedEmail === 'string' ? parsed.verifiedEmail : '',
+            tokensRemaining: typeof parsed.tokensRemaining === 'number' ? parsed.tokensRemaining : fallbackState.tokensRemaining,
+            isPremium: typeof parsed.isPremium === 'boolean' ? parsed.isPremium : fallbackState.isPremium,
         };
     } catch {
         return fallbackState;
@@ -51,7 +56,22 @@ export const AppProvider = ({ children }) => {
     const setUploadedImage = (image) => setState(prev => ({ ...prev, uploadedImage: image }));
     const setSelectedTheme = (theme) => setState(prev => ({ ...prev, selectedTheme: theme }));
     const setGeneratedImage = (image) => setState(prev => ({ ...prev, generatedImage: image }));
-    const setVerifiedEmail = (email) => setState(prev => ({ ...prev, verifiedEmail: email }));
+    const setVerifiedEmail = (email) => setState(prev => {
+        const normalized = (email || '').trim().toLowerCase();
+        if (normalized === TEST_USER_EMAIL) {
+            return { ...prev, verifiedEmail: email, tokensRemaining: 10, isPremium: true };
+        }
+        return { ...prev, verifiedEmail: email };
+    });
+    const setTokensRemaining = (tokens) => setState(prev => ({
+        ...prev,
+        tokensRemaining: Math.max(0, Number.isFinite(tokens) ? Math.floor(tokens) : prev.tokensRemaining)
+    }));
+    const decrementTokens = () => setState(prev => ({
+        ...prev,
+        tokensRemaining: Math.max(0, (Number(prev.tokensRemaining) || 0) - 1)
+    }));
+    const setIsPremium = (isPremium) => setState(prev => ({ ...prev, isPremium: Boolean(isPremium) }));
 
     const resetApp = () => {
         const resetState = {
@@ -59,7 +79,9 @@ export const AppProvider = ({ children }) => {
             uploadedImage: null,
             selectedTheme: null,
             generatedImage: null,
-            verifiedEmail: ''
+            verifiedEmail: '',
+            tokensRemaining: 5,
+            isPremium: false
         };
         setState(resetState);
         try {
@@ -75,6 +97,9 @@ export const AppProvider = ({ children }) => {
             setSelectedTheme,
             setGeneratedImage,
             setVerifiedEmail,
+            setTokensRemaining,
+            decrementTokens,
+            setIsPremium,
             resetApp
         }}>
             {children}

@@ -12,6 +12,7 @@ import { AccessibilityModal } from './components/modals/AccessibilityModal';
 import { TermsModal } from './components/modals/TermsModal';
 import { CookieModal } from './components/modals/CookieModal';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const CookieBanner = ({ onOpenCookies }) => {
@@ -68,6 +69,7 @@ const InnerApp = () => {
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isCookiesOpen, setIsCookiesOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (window.fbq) {
@@ -125,7 +127,8 @@ const InnerApp = () => {
 
   return (
     <div className="mobile-wrapper flex flex-col relative overflow-hidden bg-background">
-      <Header onHomeClick={handleHomeClick} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Header onHomeClick={handleHomeClick} onMenuToggle={() => setIsSidebarOpen(true)} />
 
       <div className="flex-1 overflow-hidden relative w-full pt-20">
         <AnimatePresence mode="wait">

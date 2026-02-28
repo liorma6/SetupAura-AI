@@ -73,6 +73,7 @@ const upload = multer({ storage: uploadStorage });
 const leadsPath = path.join(__dirname, "leads.json");
 const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
 const ADMIN_EMAIL = "liorma6@gmail.com";
+const TEST_USER_EMAIL = "liorma6@gmail.com";
 
 const readLeads = () => {
   try {
@@ -90,19 +91,81 @@ const readLeads = () => {
 
 const saveLead = (email) => {
   try {
-    const safeLeads = readLeads();
-    if (
-      safeLeads.some(
-        (l) => l && l.email && l.email.toLowerCase() === email.toLowerCase(),
-      )
-    )
-      return;
-    safeLeads.push({ email, timestamp: new Date().toISOString() });
-    fs.writeFileSync(leadsPath, JSON.stringify(safeLeads, null, 2));
+    const normalizedEmail = String(email || "").trim();
+    const newLead = { email: normalizedEmail, timestamp: new Date().toISOString() };
+    if (fs.existsSync(leadsPath)) {
+      const raw = fs.readFileSync(leadsPath, "utf8");
+      const parsed = JSON.parse(raw);
+      const leads = Array.isArray(parsed) ? parsed : [];
+      leads.push(newLead);
+      fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
+    } else {
+      fs.writeFileSync(leadsPath, JSON.stringify([newLead], null, 2));
+    }
     console.log(`[Lead] Saved: ${email}`);
   } catch (err) {
     console.error("[LEAD_SAVE_ERROR]", err.message);
   }
+};
+
+const getLeadIndexByEmail = (leads, email) =>
+  leads.findIndex(
+    (entry) =>
+      entry &&
+      entry.email &&
+      entry.email.toLowerCase() === String(email || "").toLowerCase(),
+  );
+
+const upsertLeadRecord = (email, updates = {}) => {
+  const leads = readLeads();
+  const index = getLeadIndexByEmail(leads, email);
+  const base = {
+    email: String(email || "").trim(),
+    timestamp: new Date().toISOString(),
+    premium: false,
+    tokensRemaining: 5,
+    testMode: false,
+  };
+  const next =
+    index >= 0
+      ? { ...base, ...leads[index], ...updates, email: base.email }
+      : { ...base, ...updates };
+  if (index >= 0) {
+    leads[index] = next;
+  } else {
+    leads.push(next);
+  }
+  fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
+  return next;
+};
+
+const getUserRecord = (email) => {
+  const normalized = String(email || "").trim().toLowerCase();
+  const isTestUser = normalized === TEST_USER_EMAIL.toLowerCase();
+  const existing = readLeads().find(
+    (entry) => entry && entry.email && entry.email.toLowerCase() === normalized,
+  );
+  if (existing) {
+    if (isTestUser && Number(existing.tokensRemaining || 0) < 10) {
+      return upsertLeadRecord(email, {
+        premium: true,
+        testMode: true,
+        tokensRemaining: 10,
+      });
+    }
+    return existing;
+  }
+  return upsertLeadRecord(email, {
+    premium: isTestUser,
+    testMode: isTestUser,
+    tokensRemaining: isTestUser ? 10 : 5,
+  });
+};
+
+const buildFrontendUrl = (targetPath = "/") => {
+  const base = String(process.env.FRONTEND_URL || "").trim().replace(/\/+$/, "");
+  const safePath = `/${String(targetPath || "/").replace(/^\/+/, "")}`;
+  return `${base}${safePath === "/" ? "/" : safePath}`;
 };
 
 const transporter = nodemailer.createTransport({
@@ -422,25 +485,20 @@ app.post(
   try {
     const normalizedEmail = email.trim().toLowerCase();
     const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
+    const userRecord = getUserRecord(email.trim());
+    const isTestMode = Boolean(userRecord?.testMode);
+    let isPremiumUser = Boolean(userRecord?.premium);
     const isPaidPremiumUser = Boolean(
       req.body?.isPaidPremiumUser ||
       req.body?.isPremiumUser ||
       req.body?.paidPremiumUser ||
       req.body?.hasPaidAccess,
     );
-    const hasUnlockedAccess = isUserAdmin || isPaidPremiumUser;
-
-    if (!hasUnlockedAccess) {
-      const leads = readLeads();
-      if (
-        leads.some(
-          (l) => l && l.email && l.email.toLowerCase() === normalizedEmail,
-        )
-      ) {
-        console.log(`[Paywall] Blocked: ${email}`);
-        return res.status(403).json({ error: "Trial used", paywall: true });
-      }
+    if (isPaidPremiumUser && !isPremiumUser) {
+      const updated = upsertLeadRecord(email.trim(), { premium: true });
+      isPremiumUser = Boolean(updated.premium);
     }
+    const hasUnlockedAccess = isUserAdmin || isPremiumUser || isTestMode;
 
     let imageBuffer;
     let inputFilename = "input.jpg";
@@ -581,6 +639,17 @@ app.post(
 
     const lockedShoppingList = buildLockedShoppingList();
 
+    let tokensRemaining = Number(userRecord?.tokensRemaining ?? 5);
+    if (!hasUnlockedAccess) {
+      tokensRemaining = Math.max(0, tokensRemaining - 1);
+    } else if (isTestMode) {
+      tokensRemaining = Math.max(10, tokensRemaining);
+    }
+    upsertLeadRecord(email.trim(), {
+      premium: isPremiumUser || isUserAdmin || isTestMode,
+      testMode: isTestMode,
+      tokensRemaining,
+    });
     if (!hasUnlockedAccess) {
       saveLead(email.trim());
     }
@@ -589,10 +658,15 @@ app.post(
       imageUrl,
       shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
       shoppingListUnlocked: hasUnlockedAccess,
+      tokensRemaining,
+      isPremium: Boolean(isPremiumUser || isUserAdmin || isTestMode),
+      testMode: isTestMode,
     });
 
     if (process.env.EMAIL_USER && email) {
-      const redirectLink = `${process.env.FRONTEND_URL}/pricing`;
+      const redirectLink = isPremiumUser || isUserAdmin || isTestMode
+        ? buildFrontendUrl("/")
+        : buildFrontendUrl("/pricing");
       const adminEmailBody = `
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
                         <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>

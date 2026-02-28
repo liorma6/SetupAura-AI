@@ -148,8 +148,8 @@ export const ResultScreen = () => {
                 {uploadedImage && (
                     <div className="mb-4">
                         <p className="text-xs font-bold text-gray-500 mb-1.5 tracking-wider">BEFORE</p>
-                        <div className="rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/50">
-                            <img src={uploadedImage} alt="Before" className="w-full h-full object-cover" />
+                        <div className="rounded-xl overflow-hidden border border-white/10 bg-black/50 min-h-[260px] max-h-[70vh] flex items-center justify-center">
+                            <img src={uploadedImage} alt="Before" className="w-full h-full max-h-[70vh] object-contain" />
                         </div>
                     </div>
                 )}
@@ -157,9 +157,9 @@ export const ResultScreen = () => {
                     <Sparkles className="w-3 h-3 text-purple-400" />
                     <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
                 </div>
-                <div className="rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] aspect-video bg-black/60">
+                <div className="rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-black/60 min-h-[260px] max-h-[70vh] flex items-center justify-center">
                     {generatedImage ? (
-                        <img src={generatedImage} className="w-full h-full object-cover" alt="AI Result" />
+                        <img src={generatedImage} className="w-full h-full max-h-[70vh] object-contain" alt="AI Result" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No generated image yet</div>
                     )}
