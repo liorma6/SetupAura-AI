@@ -12,7 +12,6 @@ import { AccessibilityModal } from './components/modals/AccessibilityModal';
 import { TermsModal } from './components/modals/TermsModal';
 import { CookieModal } from './components/modals/CookieModal';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BrowserRouter as Router, Link } from 'react-router-dom';
 
 const CookieBanner = ({ onOpenCookies }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -127,13 +126,13 @@ const InnerApp = () => {
     <div className="mobile-wrapper flex flex-col relative overflow-hidden bg-background">
       <header className="fixed top-0 w-full z-50 h-16 bg-black/80 backdrop-blur-md border-b border-gray-800 flex justify-center items-center">
         <div className="w-full max-w-[480px] h-full flex justify-center items-center px-4">
-          <Link
-            to="/"
+          <a
+            href="/"
             onClick={handleHomeClick}
             className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.35)] hover:opacity-80 transition-opacity"
           >
             SetupAura AI
-          </Link>
+          </a>
         </div>
       </header>
 
@@ -160,11 +159,9 @@ const InnerApp = () => {
 
 function App() {
   return (
-    <Router>
-      <AppProvider>
-        <InnerApp />
-      </AppProvider>
-    </Router>
+    <AppProvider>
+      <InnerApp />
+    </AppProvider>
   );
 }
 
