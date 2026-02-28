@@ -46,10 +46,11 @@ const tierIcon = {
 
 export const PricingScreen = () => {
     const posthog = usePostHog();
-    const { verifiedEmail, addTokens, setIsPremium, setScreen } = useApp();
+    const { verifiedEmail, setTokensRemaining, setIsPremium, setScreen } = useApp();
     const isAdmin = (verifiedEmail || '').trim().toLowerCase() === 'liorma6@gmail.com';
+    const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`;
 
-    const handleCheckoutClick = (tier, e) => {
+    const handleCheckoutClick = async (tier, e) => {
         const value = Number(String(tier.price).replace(/[^0-9.]/g, '')) || 0;
         posthog.capture('InitiateCheckout', { tier: tier.name, value, currency: 'USD' });
         if (typeof window !== 'undefined' && window.fbq) {
@@ -57,7 +58,21 @@ export const PricingScreen = () => {
         }
         if (isAdmin) {
             e.preventDefault();
-            addTokens(tier.tokens);
+            const res = await fetch(`${API_URL}/api/admin-upgrade`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: verifiedEmail,
+                    tokensToAdd: tier.tokens
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                return;
+            }
+            if (typeof data.tokensRemaining === 'number') {
+                setTokensRemaining(data.tokensRemaining);
+            }
             setIsPremium(true);
             setScreen('result');
         }

@@ -140,6 +140,7 @@ export const RecommendationsScreen = () => {
             const data = await res.json();
 
             if (res.status === 403 && (data.error === 'OUT_OF_TOKENS' || data.paywall)) {
+                setTokensRemaining(0);
                 setScreen('pricing');
                 return;
             }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Lock, Sparkles, ShoppingBag } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -67,15 +67,54 @@ const ShoppingList = ({ items, loading, error }) => {
 };
 
 export const ResultScreen = () => {
-    const { uploadedImage, generatedImage, verifiedEmail, setScreen } = useApp();
+    const { uploadedImage, generatedImage, verifiedEmail, setScreen, setUploadedImage, setGeneratedImage } = useApp();
     const [rating, setRating] = useState(0);
     const [reviewText, setReviewText] = useState('');
     const [showAdminShoppingList, setShowAdminShoppingList] = useState(false);
     const [shoppingItems, setShoppingItems] = useState([]);
     const [shoppingLoading, setShoppingLoading] = useState(false);
     const [shoppingError, setShoppingError] = useState('');
+    const [resultLoading, setResultLoading] = useState(false);
+    const [resultError, setResultError] = useState('');
 
     const isAdmin = (verifiedEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const resultId = params.get('id');
+        if (!resultId) return;
+
+        let isMounted = true;
+        const loadResultFromEmailLink = async () => {
+            setResultLoading(true);
+            setResultError('');
+            try {
+                const res = await fetch(`${API_URL}/api/result/${encodeURIComponent(resultId)}`);
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data?.error || 'Failed to load result');
+                }
+                if (!isMounted) return;
+                if (data?.originalImageUrl) {
+                    setUploadedImage(data.originalImageUrl);
+                }
+                if (data?.imageUrl) {
+                    setGeneratedImage(data.imageUrl);
+                }
+            } catch (err) {
+                if (!isMounted) return;
+                setResultError(err.message || 'Failed to load result');
+            } finally {
+                if (!isMounted) return;
+                setResultLoading(false);
+            }
+        };
+
+        loadResultFromEmailLink();
+        return () => {
+            isMounted = false;
+        };
+    }, [setGeneratedImage, setUploadedImage]);
 
     const handleSubmitReview = async () => {
         if (rating === 0) {
@@ -158,8 +197,12 @@ export const ResultScreen = () => {
                     <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
                 </div>
                 <div className="rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-black/60 min-h-[260px] max-h-[70vh] flex items-center justify-center">
-                    {generatedImage ? (
+                    {resultLoading ? (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">Loading result...</div>
+                    ) : generatedImage ? (
                         <img src={generatedImage} className="w-full h-full max-h-[70vh] object-contain" alt="AI Result" />
+                    ) : resultError ? (
+                        <div className="w-full h-full flex items-center justify-center text-red-400 text-sm">{resultError}</div>
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No generated image yet</div>
                     )}

@@ -7,14 +7,18 @@ const TEST_USER_EMAIL = 'liorma6@gmail.com';
 const getInitialState = () => {
     const initialPath = window.location.pathname;
     const queryView = new URLSearchParams(window.location.search).get('view');
-    const fallbackScreen = initialPath === '/pricing' || queryView === 'pricing' ? 'pricing' : 'welcome';
+    const fallbackScreen = initialPath === '/pricing' || queryView === 'pricing'
+        ? 'pricing'
+        : initialPath === '/result' || queryView === 'result'
+            ? 'result'
+            : 'welcome';
     const fallbackState = {
         screen: fallbackScreen,
         uploadedImage: null,
         selectedTheme: null,
         generatedImage: null,
         verifiedEmail: '',
-        tokensRemaining: 5,
+        tokensRemaining: 1,
         isPremium: false,
     };
 
@@ -47,7 +51,7 @@ export const AppProvider = ({ children }) => {
     }, [state]);
 
     const setScreen = (screen) => {
-        const path = screen === 'pricing' ? '/pricing' : '/';
+        const path = screen === 'pricing' ? '/pricing' : screen === 'result' ? '/result' : '/';
         if (window.location.pathname !== path) {
             window.history.pushState({}, '', path);
         }
@@ -59,7 +63,7 @@ export const AppProvider = ({ children }) => {
     const setVerifiedEmail = (email) => setState(prev => {
         const normalized = (email || '').trim().toLowerCase();
         if (normalized === TEST_USER_EMAIL) {
-            return { ...prev, verifiedEmail: email, tokensRemaining: 10, isPremium: true };
+            return { ...prev, verifiedEmail: email, isPremium: true };
         }
         return { ...prev, verifiedEmail: email };
     });
@@ -84,7 +88,7 @@ export const AppProvider = ({ children }) => {
             selectedTheme: null,
             generatedImage: null,
             verifiedEmail: '',
-            tokensRemaining: 5,
+            tokensRemaining: 1,
             isPremium: false
         };
         setState(resetState);

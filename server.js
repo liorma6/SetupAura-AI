@@ -18,6 +18,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SUCCESS_URL = "https://www.setupaura.online/";
 const PRICING_URL = "https://www.setupaura.online/pricing";
+const FRONTEND_URL = (
+  process.env.FRONTEND_URL ||
+  process.env.FRONTEND_BASE_URL ||
+  SUCCESS_URL
+).replace(/\/+$/, "");
 
 const otpStore = new Map();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -130,7 +135,7 @@ const upsertLeadRecord = (email, updates = {}) => {
     email: String(email || "").trim(),
     timestamp: new Date().toISOString(),
     premium: false,
-    tokensRemaining: 5,
+    tokensRemaining: 1,
     testMode: false,
   };
   const next =
@@ -153,11 +158,17 @@ const getUserRecord = (email) => {
   );
 };
 
-const buildFrontendUrl = (targetPath = "/") => {
+const buildFrontendUrl = (targetPath = "/", query = {}) => {
   const pathValue = String(targetPath || "/").trim();
-  if (!pathValue || pathValue === "/") return SUCCESS_URL;
-  if (pathValue === "/pricing") return PRICING_URL;
-  return SUCCESS_URL;
+  const normalizedPath = pathValue.startsWith("/") ? pathValue : `/${pathValue}`;
+  const params = new URLSearchParams();
+  Object.entries(query || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      params.set(key, String(value));
+    }
+  });
+  const queryString = params.toString();
+  return `${FRONTEND_URL}${normalizedPath}${queryString ? `?${queryString}` : ""}`;
 };
 
 const transporter = nodemailer.createTransport({
@@ -493,12 +504,14 @@ app.post(
     let imageBuffer;
     let inputFilename = "input.jpg";
     let inputMimeType = "image/jpeg";
+    let originalImageUrl = "";
 
     if (req.file?.path) {
       imageBuffer = fs.readFileSync(req.file.path);
       inputFilename = req.file.originalname || path.basename(req.file.path);
       inputMimeType =
         req.file.mimetype || detectMimeType(req.file.originalname || "");
+      originalImageUrl = `https://${req.get("host")}/uploads/${path.basename(req.file.path)}`;
     } else {
       const imageString = String(image || "");
       const hasPrefix = imageString.includes(";base64,");
@@ -513,6 +526,7 @@ app.post(
       const extFromMime = inputMimeType.split("/")[1] || "jpg";
       inputFilename = `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extFromMime}`;
       fs.writeFileSync(path.join(UPLOADS_DIR, inputFilename), imageBuffer);
+      originalImageUrl = `https://${req.get("host")}/uploads/${inputFilename}`;
     }
 
     const base64Data = imageBuffer.toString("base64");
@@ -595,10 +609,8 @@ app.post(
     const finalGeneratedBuffer = hasUnlockedAccess
       ? generatedBuffer
       : await applyWatermarkForFreeUser(generatedBuffer);
-    fs.promises
-      .writeFile(filepath, finalGeneratedBuffer)
-      .then(() => console.log(`[Saved] ${filepath}`))
-      .catch((err) => console.error("[SAVE_IMAGE_ERROR]", err));
+    await fs.promises.writeFile(filepath, finalGeneratedBuffer);
+    console.log(`[Saved] ${filepath}`);
     const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
 
     let fullShoppingList = [];
@@ -613,8 +625,11 @@ app.post(
     }
 
     const metadataPayload = {
+      resultId: filename,
       userEmail: email.trim(),
       theme: activeTheme,
+      originalImageUrl,
+      generatedImageUrl: imageUrl,
       shoppingList: fullShoppingList,
       timestamp: new Date().toISOString(),
     };
@@ -622,10 +637,11 @@ app.post(
       METADATA_DIR,
       `${path.parse(filename).name}.json`,
     );
-    fs.promises
-      .writeFile(metadataFilePath, JSON.stringify(metadataPayload, null, 2))
-      .then(() => console.log(`[Saved Metadata] ${metadataFilePath}`))
-      .catch((err) => console.error("[SAVE_METADATA_ERROR]", err));
+    await fs.promises.writeFile(
+      metadataFilePath,
+      JSON.stringify(metadataPayload, null, 2),
+    );
+    console.log(`[Saved Metadata] ${metadataFilePath}`);
 
     const lockedShoppingList = buildLockedShoppingList();
 
@@ -643,7 +659,9 @@ app.post(
     }
 
     res.json({
+      resultId: filename,
       imageUrl,
+      originalImageUrl,
       shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
       shoppingListUnlocked: hasUnlockedAccess,
       tokensRemaining,
@@ -652,7 +670,7 @@ app.post(
     });
 
     if (process.env.EMAIL_USER && email) {
-      const redirectLink = buildFrontendUrl("/");
+      const redirectLink = buildFrontendUrl("/result", { id: filename });
       const adminEmailBody = `
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
                         <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>
@@ -660,7 +678,7 @@ app.post(
                         <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
                         ${renderShoppingListHtml(fullShoppingList, true)}
                         <div style="margin-top:18px;">
-                            <a href="${SUCCESS_URL}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open SetupAura</a>
+                            <a href="${redirectLink}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open Your Result</a>
                         </div>
                     </div>
                 `;
@@ -706,6 +724,50 @@ app.post(
   }
   },
 );
+
+app.get("/api/result/:id", async (req, res) => {
+  const rawId = String(req.params.id || "").trim();
+  if (!rawId) {
+    return res.status(400).json({ error: "MISSING_RESULT_ID" });
+  }
+
+  const safeId = path.basename(rawId);
+  const fileName = safeId.endsWith(".jpg") ? safeId : `${safeId}.jpg`;
+  const baseName = path.parse(fileName).name;
+  const metadataFilePath = path.join(METADATA_DIR, `${baseName}.json`);
+  const generatedImageUrl = `https://${req.get("host")}/uploads/images/${fileName}`;
+
+  if (!fs.existsSync(path.join(IMAGES_DIR, fileName))) {
+    return res.status(404).json({ error: "RESULT_NOT_FOUND" });
+  }
+
+  if (!fs.existsSync(metadataFilePath)) {
+    return res.json({
+      resultId: fileName,
+      imageUrl: generatedImageUrl,
+      originalImageUrl: null,
+    });
+  }
+
+  try {
+    const raw = await fs.promises.readFile(metadataFilePath, "utf8");
+    const parsed = JSON.parse(raw);
+    return res.json({
+      resultId: fileName,
+      imageUrl: parsed.generatedImageUrl || generatedImageUrl,
+      originalImageUrl: parsed.originalImageUrl || null,
+      userEmail: parsed.userEmail || "",
+      theme: parsed.theme || "",
+      timestamp: parsed.timestamp || "",
+    });
+  } catch {
+    return res.json({
+      resultId: fileName,
+      imageUrl: generatedImageUrl,
+      originalImageUrl: null,
+    });
+  }
+});
 
 app.post("/api/analyze-room", async (req, res) => {
   const { image, imageUrl, selectedTheme } = req.body || {};
@@ -853,6 +915,40 @@ app.post("/api/verify-otp", (req, res) => {
   }
   otpStore.delete(normalizedEmail);
   res.json({ success: true, verified: true });
+});
+
+app.post("/api/admin-upgrade", (req, res) => {
+  const { email, tokensToAdd } = req.body || {};
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (normalizedEmail !== ADMIN_EMAIL.toLowerCase()) {
+    return res.status(403).json({ error: "FORBIDDEN" });
+  }
+
+  const amount = Math.max(0, Math.floor(Number(tokensToAdd) || 0));
+  if (amount <= 0) {
+    return res.status(400).json({ error: "INVALID_TOKENS" });
+  }
+
+  const existingLead = getUserRecord(normalizedEmail);
+  const currentTokens = Math.max(
+    0,
+    Math.floor(Number(existingLead?.tokensRemaining) || 0),
+  );
+  const nextTokens = currentTokens + amount;
+
+  upsertLeadRecord(normalizedEmail, {
+    premium: true,
+    testMode: true,
+    tokensRemaining: nextTokens,
+  });
+
+  return res.json({
+    success: true,
+    tokensAdded: amount,
+    tokensRemaining: nextTokens,
+    isPremium: true,
+    email: normalizedEmail,
+  });
 });
 
 app.use((req, res) => {
