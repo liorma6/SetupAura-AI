@@ -50,21 +50,21 @@ app.use(
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
-const UPLOADS_DIR = path.join(__dirname, "uploads");
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const IMAGES_DIR = path.join(UPLOADS_DIR, "images");
-if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 const METADATA_DIR = path.join(UPLOADS_DIR, "metadata");
-if (!fs.existsSync(METADATA_DIR))
+const ensureUploadDirs = () => {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  fs.mkdirSync(IMAGES_DIR, { recursive: true });
   fs.mkdirSync(METADATA_DIR, { recursive: true });
+};
+ensureUploadDirs();
 app.use("/uploads", express.static(UPLOADS_DIR));
 
 const uploadStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDestination = path.join(__dirname, "uploads");
-    if (!fs.existsSync(uploadDestination))
-      fs.mkdirSync(uploadDestination, { recursive: true });
-    cb(null, uploadDestination);
+    ensureUploadDirs();
+    cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
@@ -98,13 +98,16 @@ const saveLead = (email) => {
   try {
     const normalizedEmail = String(email || "").trim();
     const leads = readLeads();
-    const exists = leads.some(
-      (entry) =>
-        entry &&
-        entry.email &&
-        entry.email.toLowerCase() === normalizedEmail.toLowerCase(),
-    );
-    if (exists) return;
+    const existingEmails = leads
+      .map((entry) =>
+        typeof entry === "string"
+          ? entry.trim().toLowerCase()
+          : String(entry?.email || "")
+              .trim()
+              .toLowerCase(),
+      )
+      .filter(Boolean);
+    if (existingEmails.includes(normalizedEmail.toLowerCase())) return;
     const newLead = {
       email: normalizedEmail,
       timestamp: new Date().toISOString(),
@@ -525,6 +528,7 @@ app.post(
       imageBuffer = Buffer.from(base64Data, "base64");
       const extFromMime = inputMimeType.split("/")[1] || "jpg";
       inputFilename = `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extFromMime}`;
+      ensureUploadDirs();
       fs.writeFileSync(path.join(UPLOADS_DIR, inputFilename), imageBuffer);
       originalImageUrl = `https://${req.get("host")}/uploads/${inputFilename}`;
     }
@@ -604,6 +608,7 @@ app.post(
 
     const generatedBase64 = aiResponse.data[0].b64_json;
     const filename = `gen-${Date.now()}.jpg`;
+    ensureUploadDirs();
     const filepath = path.join(IMAGES_DIR, filename);
     const generatedBuffer = Buffer.from(generatedBase64, "base64");
     const finalGeneratedBuffer = hasUnlockedAccess
@@ -637,6 +642,7 @@ app.post(
       METADATA_DIR,
       `${path.parse(filename).name}.json`,
     );
+    ensureUploadDirs();
     await fs.promises.writeFile(
       metadataFilePath,
       JSON.stringify(metadataPayload, null, 2),
