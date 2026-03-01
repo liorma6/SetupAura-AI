@@ -150,9 +150,9 @@ export const WelcomeScreen = ({ onStart }) => {
                         <h2 className="mt-2 text-2xl font-black text-white">Before / After Gaming Room Upgrades</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <BeforeAfterSlider beforeSrc="/before1.jpg" afterSrc="/after1.jpg" />
-                        <BeforeAfterSlider beforeSrc="/before2.jpg" afterSrc="/after2.jpg" />
-                        <BeforeAfterSlider beforeSrc="/before3.jpg" afterSrc="/after3.jpg" />
+                        <BeforeAfterSlider beforeSrc="/beforeLior.jpeg" afterSrc="/afterLior.png" />
+                        <BeforeAfterSlider beforeSrc="/beforeHila.JPG" afterSrc="/afterHila.png" />
+                        <BeforeAfterSlider beforeSrc="/beforeEric.jpg" afterSrc="/afterEric.png" />
                     </div>
                 </div>
             </section>
