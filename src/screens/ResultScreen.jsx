@@ -67,10 +67,21 @@ const ShoppingList = ({ items, loading, error }) => {
 };
 
 export const ResultScreen = () => {
-    const { uploadedImage, generatedImage, verifiedEmail, setScreen, setUploadedImage, setGeneratedImage } = useApp();
+    const {
+        uploadedImage,
+        generatedImage,
+        verifiedEmail,
+        isPremium,
+        setScreen,
+        setUploadedImage,
+        setGeneratedImage,
+        setVerifiedEmail,
+        setIsPremium
+    } = useApp();
+
     const [rating, setRating] = useState(0);
     const [reviewText, setReviewText] = useState('');
-    const [showAdminShoppingList, setShowAdminShoppingList] = useState(false);
+    const [showUnlockedShoppingList, setShowUnlockedShoppingList] = useState(false);
     const [shoppingItems, setShoppingItems] = useState([]);
     const [shoppingLoading, setShoppingLoading] = useState(false);
     const [shoppingError, setShoppingError] = useState('');
@@ -78,11 +89,24 @@ export const ResultScreen = () => {
     const [resultError, setResultError] = useState('');
     const [imageLoading, setImageLoading] = useState(false);
     const [displayImageUrl, setDisplayImageUrl] = useState('');
+    const [linkUnlocked, setLinkUnlocked] = useState(false);
+
     const preloadRequestRef = useRef(0);
+    const initializedRef = useRef(false);
 
     const isAdmin = (verifiedEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const hasUnlockedAccess = Boolean(isAdmin || isPremium || linkUnlocked);
 
     useEffect(() => {
+        if (isAdmin || isPremium) {
+            setLinkUnlocked(true);
+        }
+    }, [isAdmin, isPremium]);
+
+    useEffect(() => {
+        if (initializedRef.current) return;
+        initializedRef.current = true;
+
         const params = new URLSearchParams(window.location.search);
         const resultId = params.get('id');
         let isMounted = true;
@@ -103,34 +127,54 @@ export const ResultScreen = () => {
                 preloader.src = url;
             });
 
-        const loadResultFromEmailLink = async () => {
+        const loadResult = async () => {
             setResultLoading(true);
             setImageLoading(true);
             setResultError('');
             setDisplayImageUrl('');
+
             try {
-                let sourceImageUrl = '';
+                let sourceImageUrl = generatedImage || '';
 
                 if (resultId) {
                     const res = await fetch(`${API_URL}/api/result/${encodeURIComponent(resultId)}`);
                     const data = await res.json();
+
                     if (!res.ok) {
                         throw new Error(data?.error || 'Failed to load result');
                     }
+
                     if (!isMounted) return;
+
                     if (data?.originalImageUrl) {
                         setUploadedImage(data.originalImageUrl);
                     }
+
                     if (data?.imageUrl) {
                         setGeneratedImage(data.imageUrl);
                         sourceImageUrl = data.imageUrl;
                     }
-                } else if (generatedImage) {
-                    sourceImageUrl = generatedImage;
+
+                    if (data?.userEmail) {
+                        setVerifiedEmail(data.userEmail);
+                    }
+
+                    if (data?.isPremium || (data?.userEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                        setIsPremium(true);
+                        setLinkUnlocked(true);
+                    }
+
+                    if (data?.shoppingListUnlocked) {
+                        setLinkUnlocked(true);
+                    }
+
+                    if (Array.isArray(data?.shoppingList) && data.shoppingList.length) {
+                        setShoppingItems(data.shoppingList);
+                        setShowUnlockedShoppingList(Boolean(data?.shoppingListUnlocked || data?.isPremium || (data?.userEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()));
+                    }
                 }
 
                 if (!sourceImageUrl) {
-                    setImageLoading(false);
                     return;
                 }
 
@@ -145,12 +189,13 @@ export const ResultScreen = () => {
             }
         };
 
-        loadResultFromEmailLink();
+        loadResult();
+
         return () => {
             isMounted = false;
             preloadRequestRef.current += 1;
         };
-    }, [setGeneratedImage, setUploadedImage]);
+    }, []);
 
     const handleSubmitReview = async () => {
         if (rating === 0) {
@@ -174,18 +219,19 @@ export const ResultScreen = () => {
     };
 
     const handleViewShoppingList = async () => {
-        if (!isAdmin) {
+        if (!hasUnlockedAccess) {
             setScreen('pricing');
             return;
         }
 
-        setShowAdminShoppingList(true);
+        setShowUnlockedShoppingList(true);
 
         if (shoppingItems.length > 0 || shoppingLoading) {
             return;
         }
 
-        if (!generatedImage) {
+        const sourceImage = displayImageUrl || generatedImage;
+        if (!sourceImage) {
             setShoppingError('Generated image is missing.');
             return;
         }
@@ -197,7 +243,7 @@ export const ResultScreen = () => {
             const res = await fetch(`${API_URL}/api/analyze-room`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl: generatedImage })
+                body: JSON.stringify({ imageUrl: sourceImage })
             });
 
             const data = await res.json();
@@ -265,13 +311,13 @@ export const ResultScreen = () => {
                         <h3 className="text-sm font-bold tracking-wider uppercase">Exact-Match Shopping List</h3>
                     </div>
 
-                    {isAdmin ? (
+                    {hasUnlockedAccess ? (
                         <div className="space-y-4">
-                            {showAdminShoppingList ? (
+                            {showUnlockedShoppingList ? (
                                 <ShoppingList items={shoppingItems} loading={shoppingLoading} error={shoppingError} />
                             ) : (
                                 <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-200">
-                                    Admin shopping list is available. Click below to load unlocked items.
+                                    Your shopping list is unlocked. Click below to load items.
                                 </div>
                             )}
                             <button
@@ -280,12 +326,14 @@ export const ResultScreen = () => {
                             >
                                 View Shopping List
                             </button>
-                            <button
-                                onClick={() => setScreen('pricing')}
-                                className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:scale-[1.01] active:scale-95 transition-transform"
-                            >
-                                Admin: Test Pricing Page
-                            </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setScreen('pricing')}
+                                    className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:scale-[1.01] active:scale-95 transition-transform"
+                                >
+                                    Admin: Test Pricing Page
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-4">

@@ -144,12 +144,12 @@ export const WelcomeScreen = ({ onStart }) => {
                 </div>
             </section>
             <section className="relative z-10 px-6 pb-12 -mt-2">
-                <div className="w-full max-w-md mx-auto">
+                <div className="w-full max-w-6xl mx-auto">
                     <div className="mb-4 text-center">
                         <p className="text-xs font-bold tracking-[0.22em] text-cyan-300 uppercase">Showcase</p>
                         <h2 className="mt-2 text-2xl font-black text-white">Before / After Gaming Room Upgrades</h2>
                     </div>
-                    <div className="grid grid-cols-1 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                         <BeforeAfterSlider beforeSrc="/before1.jpg" afterSrc="/after1.jpg" />
                         <BeforeAfterSlider beforeSrc="/before2.jpg" afterSrc="/after2.jpg" />
                         <BeforeAfterSlider beforeSrc="/before3.jpg" afterSrc="/after3.jpg" />

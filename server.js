@@ -194,13 +194,24 @@ const detectMimeType = (source = "") => {
 };
 
 const extractJsonArray = (text = "") => {
-  const trimmed = text.trim();
+  const trimmed = String(text || "").trim();
+  const stripped = trimmed
+    .replace(/^\s*```json\s*/i, "")
+    .replace(/^\s*```\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+
+  try {
+    const parsed = JSON.parse(stripped);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+
   try {
     const parsed = JSON.parse(trimmed);
     if (Array.isArray(parsed)) return parsed;
   } catch {}
 
-  const codeBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const codeBlock = stripped.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (codeBlock?.[1]) {
     try {
       const parsed = JSON.parse(codeBlock[1]);
@@ -208,10 +219,10 @@ const extractJsonArray = (text = "") => {
     } catch {}
   }
 
-  const start = trimmed.indexOf("[");
-  const end = trimmed.lastIndexOf("]");
+  const start = stripped.indexOf("[");
+  const end = stripped.lastIndexOf("]");
   if (start !== -1 && end !== -1 && end > start) {
-    const candidate = trimmed.slice(start, end + 1);
+    const candidate = stripped.slice(start, end + 1);
     try {
       const parsed = JSON.parse(candidate);
       if (Array.isArray(parsed)) return parsed;
@@ -229,9 +240,12 @@ const normalizeShoppingList = (items) => {
     .map((item, index) => {
       const rawName = String(item?.name || "").trim();
       if (!rawName) return null;
-      const rawBuyLink = String(item?.buyLink || "").trim();
+      const rawBuyLink = String(item?.url || item?.buyLink || "").trim();
       const hasValidHttpLink =
         rawBuyLink.startsWith("http://") || rawBuyLink.startsWith("https://");
+      const rawPrice = String(
+        item?.price || item?.estimatedPrice || "Price varies",
+      ).trim();
 
       return {
         id: String(item?.id || `item-${index + 1}`),
@@ -239,8 +253,7 @@ const normalizeShoppingList = (items) => {
         description:
           String(item?.description || "").trim() ||
           `${rawName} for a themed gaming room setup`,
-        estimatedPrice:
-          String(item?.estimatedPrice || "").trim() || "Price varies",
+        estimatedPrice: rawPrice || "Price varies",
         buyLink: hasValidHttpLink ? rawBuyLink : "",
       };
     })
@@ -434,15 +447,27 @@ const analyzeRoomWithGemini = async ({ mimeType, data, selectedTheme }) => {
 
   const config = resolveThemeConfig(selectedTheme);
   const [item1, item2, item3] = config.heroItems;
-  const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. You MUST include a product entry named Premium Gaming Chair with a matching aesthetic and a shopping link. Return ONLY a JSON array. You MUST provide URLs to actual, specific end-products (e.g., a direct link to a specific brand's product page or an exact Amazon product ASIN). Do NOT provide generic search links (like amazon.com/s?k=gaming+chair). If the exact product is not available, provide a direct URL to a highly similar specific end-product. The links must lead directly to a buyable item.`;
+  const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. You MUST include a product entry named Premium Gaming Chair with a matching aesthetic and a shopping link. You MUST provide URLs to actual, specific end-products (e.g., a direct link to a specific brand's product page or an exact Amazon product ASIN). Do NOT provide generic search links (like amazon.com/s?k=gaming+chair). If the exact product is not available, provide a direct URL to a highly similar specific end-product. The links must lead directly to a buyable item. You MUST return the response strictly as a valid JSON array of objects. Each object must have 'name', 'description', 'price', and 'url'. Do not include markdown code blocks or any other text outside the JSON array.`;
 
-  const result = await model.generateContent([
-    { text: prompt },
-    { inlineData: { mimeType, data } },
-  ]);
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }, { inlineData: { mimeType, data } }],
+      },
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+    },
+  });
 
   const rawText = result.response.text();
-  const parsed = extractJsonArray(rawText);
+  let parsed = null;
+  try {
+    parsed = extractJsonArray(rawText);
+  } catch {
+    parsed = null;
+  }
   if (!parsed) {
     throw new Error("INVALID_GEMINI_RESPONSE");
   }
@@ -763,19 +788,37 @@ app.get("/api/result/:id", async (req, res) => {
   try {
     const raw = await fs.promises.readFile(metadataFilePath, "utf8");
     const parsed = JSON.parse(raw);
+    const userEmail = String(parsed.userEmail || "").trim();
+    const normalizedUserEmail = userEmail.toLowerCase();
+    const isUserAdmin = normalizedUserEmail === ADMIN_EMAIL.toLowerCase();
+    const userRecord = userEmail ? getUserRecord(userEmail) : null;
+    const isUserPremium = Boolean(userRecord?.premium || isUserAdmin);
+    const fullShoppingList = Array.isArray(parsed.shoppingList)
+      ? normalizeShoppingList(parsed.shoppingList)
+      : [];
+    const shoppingListUnlocked = Boolean(isUserAdmin || isUserPremium);
+
     return res.json({
       resultId: fileName,
       imageUrl: parsed.generatedImageUrl || generatedImageUrl,
       originalImageUrl: parsed.originalImageUrl || null,
-      userEmail: parsed.userEmail || "",
+      userEmail,
       theme: parsed.theme || "",
       timestamp: parsed.timestamp || "",
+      isPremium: isUserPremium,
+      shoppingListUnlocked,
+      shoppingList: shoppingListUnlocked
+        ? fullShoppingList
+        : buildLockedShoppingList(),
     });
   } catch {
     return res.json({
       resultId: fileName,
       imageUrl: generatedImageUrl,
       originalImageUrl: null,
+      isPremium: false,
+      shoppingListUnlocked: false,
+      shoppingList: buildLockedShoppingList(),
     });
   }
 });
