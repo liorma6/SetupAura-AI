@@ -229,7 +229,9 @@ const normalizeShoppingList = (items) => {
     .map((item, index) => {
       const rawName = String(item?.name || "").trim();
       if (!rawName) return null;
-      const amazonLink = `https://www.amazon.com/s?k=${encodeURIComponent(rawName)}`;
+      const rawBuyLink = String(item?.buyLink || "").trim();
+      const hasValidHttpLink =
+        rawBuyLink.startsWith("http://") || rawBuyLink.startsWith("https://");
 
       return {
         id: String(item?.id || `item-${index + 1}`),
@@ -239,9 +241,10 @@ const normalizeShoppingList = (items) => {
           `${rawName} for a themed gaming room setup`,
         estimatedPrice:
           String(item?.estimatedPrice || "").trim() || "Price varies",
-        buyLink: amazonLink,
+        buyLink: hasValidHttpLink ? rawBuyLink : "",
       };
     })
+    .filter((item) => item?.buyLink)
     .filter(Boolean);
 };
 
@@ -431,7 +434,7 @@ const analyzeRoomWithGemini = async ({ mimeType, data, selectedTheme }) => {
 
   const config = resolveThemeConfig(selectedTheme);
   const [item1, item2, item3] = config.heroItems;
-  const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. You MUST include a product entry named Premium Gaming Chair with a matching aesthetic and a shopping link. Return ONLY a JSON array. For buyLink, generate a specific Amazon search URL: https://www.amazon.com/s?k=[PRODUCT_NAME].`;
+  const prompt = `Analyze this realistic ${config.label} gaming room. Identify the 3 hero items: ${item1}, ${item2}, and ${item3}, plus 2 other professional peripherals. You MUST include a product entry named Premium Gaming Chair with a matching aesthetic and a shopping link. Return ONLY a JSON array. You MUST provide URLs to actual, specific end-products (e.g., a direct link to a specific brand's product page or an exact Amazon product ASIN). Do NOT provide generic search links (like amazon.com/s?k=gaming+chair). If the exact product is not available, provide a direct URL to a highly similar specific end-product. The links must lead directly to a buyable item.`;
 
   const result = await model.generateContent([
     { text: prompt },
@@ -586,17 +589,19 @@ app.post(
     const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
     console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
     const themeConfig = resolveThemeConfig(activeTheme);
-    const [item1, item2, item3] = themeConfig.heroItems;
-
-    const enhancedPrompt = `A professional interior photograph of a high-end gaming room. NOT A DRAWING. Hyper-realistic, 8K resolution. Base: Dual monitors, mechanical keyboard, and PC tower. Theme: ${themeConfig.label}. Features: ${item1}, ${item2}, and ${item3} in realistic proportions (no oversized statues). Constraints: Maintain exact room layout from the uploaded image. Ensure clear ambient lighting. Furniture must not overlap (chair and bed must be separate and aesthetic). You MUST explicitly upgrade the chair in the room to a premium, high-end gaming chair. If the original image lacks a chair, you MUST add a premium gaming chair to the setup. In your structured response/product recommendations, you MUST include a product entry for a 'Premium Gaming Chair' with a matching aesthetic and a shopping link.`;
+    const enhancedPrompt = `Transform this photo into a high-end gaming room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with RGB accents, add a premium gaming desk, and MUST include a premium gaming chair. Make it look like a real interior photograph.`;
 
     const TIMEOUT_MS = 90000;
     const aiResponse = await Promise.race([
       openai.images.edit({
-        model: "gpt-image-1",
+        model: "gpt-image-1.5",
         image: imageFile,
         prompt: enhancedPrompt,
-        size: "1024x1024",
+        size: "1536x1024",
+        quality: "high",
+        input_fidelity: "high",
+        output_format: "jpeg",
+        output_compression: 90,
       }),
       new Promise((_, reject) =>
         setTimeout(
