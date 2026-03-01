@@ -40,7 +40,7 @@ const BeforeAfterSlider = ({ beforeSrc, afterSrc }) => {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-            className="relative aspect-[4/5] w-full rounded-2xl overflow-hidden border border-white/15 bg-black/50 touch-none select-none"
+            className="relative aspect-square md:aspect-[4/5] w-full rounded-2xl overflow-hidden border border-white/15 bg-black/50 touch-none select-none"
         >
             <img
                 src={beforeSrc}
@@ -149,7 +149,7 @@ export const WelcomeScreen = ({ onStart }) => {
                         <p className="text-xs font-bold tracking-[0.22em] text-cyan-300 uppercase">Showcase</p>
                         <h2 className="mt-2 text-2xl font-black text-white">Before / After Gaming Room Upgrades</h2>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-3 gap-2 md:gap-5">
                         <BeforeAfterSlider beforeSrc="/beforeLior.jpeg" afterSrc="/afterLior.png" />
                         <BeforeAfterSlider beforeSrc="/beforeHila.JPG" afterSrc="/afterHila.png" />
                         <BeforeAfterSlider beforeSrc="/beforeEric.jpg" afterSrc="/afterEric.png" />
