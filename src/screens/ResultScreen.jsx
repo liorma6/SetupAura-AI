@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Lock, Sparkles, ShoppingBag } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -76,50 +76,81 @@ export const ResultScreen = () => {
     const [shoppingError, setShoppingError] = useState('');
     const [resultLoading, setResultLoading] = useState(false);
     const [resultError, setResultError] = useState('');
-    const [resultImageLoaded, setResultImageLoaded] = useState(false);
+    const [imageLoading, setImageLoading] = useState(false);
+    const [displayImageUrl, setDisplayImageUrl] = useState('');
+    const preloadRequestRef = useRef(0);
 
     const isAdmin = (verifiedEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const resultId = params.get('id');
-        if (!resultId) return;
-
         let isMounted = true;
+
+        const preloadImage = (url) =>
+            new Promise((resolve, reject) => {
+                const requestId = ++preloadRequestRef.current;
+                const preloader = new Image();
+                preloader.onload = () => {
+                    if (!isMounted || requestId !== preloadRequestRef.current) return;
+                    setDisplayImageUrl(url);
+                    resolve();
+                };
+                preloader.onerror = () => {
+                    if (!isMounted || requestId !== preloadRequestRef.current) return;
+                    reject(new Error('Failed to load result image'));
+                };
+                preloader.src = url;
+            });
+
         const loadResultFromEmailLink = async () => {
             setResultLoading(true);
+            setImageLoading(true);
             setResultError('');
+            setDisplayImageUrl('');
             try {
-                const res = await fetch(`${API_URL}/api/result/${encodeURIComponent(resultId)}`);
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data?.error || 'Failed to load result');
+                let sourceImageUrl = '';
+
+                if (resultId) {
+                    const res = await fetch(`${API_URL}/api/result/${encodeURIComponent(resultId)}`);
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data?.error || 'Failed to load result');
+                    }
+                    if (!isMounted) return;
+                    if (data?.originalImageUrl) {
+                        setUploadedImage(data.originalImageUrl);
+                    }
+                    if (data?.imageUrl) {
+                        setGeneratedImage(data.imageUrl);
+                        sourceImageUrl = data.imageUrl;
+                    }
+                } else if (generatedImage) {
+                    sourceImageUrl = generatedImage;
                 }
-                if (!isMounted) return;
-                if (data?.originalImageUrl) {
-                    setUploadedImage(data.originalImageUrl);
+
+                if (!sourceImageUrl) {
+                    setImageLoading(false);
+                    return;
                 }
-                if (data?.imageUrl) {
-                    setGeneratedImage(data.imageUrl);
-                }
+
+                await preloadImage(sourceImageUrl);
             } catch (err) {
                 if (!isMounted) return;
                 setResultError(err.message || 'Failed to load result');
             } finally {
                 if (!isMounted) return;
                 setResultLoading(false);
+                setImageLoading(false);
             }
         };
 
         loadResultFromEmailLink();
         return () => {
             isMounted = false;
+            preloadRequestRef.current += 1;
         };
     }, [setGeneratedImage, setUploadedImage]);
-
-    useEffect(() => {
-        setResultImageLoaded(false);
-    }, [generatedImage]);
 
     const handleSubmitReview = async () => {
         if (rating === 0) {
@@ -202,28 +233,26 @@ export const ResultScreen = () => {
                     <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
                 </div>
                 <div className="relative rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-black/60 min-h-[260px] max-h-[70vh] flex items-center justify-center">
-                    {generatedImage && (
+                    {displayImageUrl && !imageLoading && !resultLoading && !resultError && (
                         <img
-                            src={generatedImage}
-                            onLoad={() => setResultImageLoaded(true)}
-                            onError={() => setResultError('Failed to load result image')}
-                            className={`w-full h-full max-h-[70vh] object-contain transition-opacity duration-300 ${resultImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                            src={displayImageUrl}
+                            className="w-full h-full max-h-[70vh] object-contain"
                             alt="AI Result"
                         />
                     )}
 
-                    {!resultError && (resultLoading || (generatedImage && !resultImageLoaded)) && (
+                    {!resultError && (resultLoading || imageLoading) && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40">
                             <div className="w-8 h-8 rounded-full border-2 border-purple-300/30 border-t-purple-300 animate-spin" />
                             <div className="w-32 h-2 rounded-full bg-white/10 animate-pulse" />
                         </div>
                     )}
 
-                    {!resultLoading && resultError && !resultImageLoaded && (
+                    {!resultLoading && !imageLoading && resultError && (
                         <div className="absolute inset-0 flex items-center justify-center text-red-400 text-sm px-4 text-center">{resultError}</div>
                     )}
 
-                    {!resultLoading && !generatedImage && !resultError && (
+                    {!resultLoading && !imageLoading && !displayImageUrl && !resultError && (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No generated image yet</div>
                     )}
                 </div>

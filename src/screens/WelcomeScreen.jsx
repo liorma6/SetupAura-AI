@@ -2,8 +2,7 @@ import { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
-export const WelcomeScreen = ({ onStart }) => {
-    const { setVerifiedEmail } = useApp();
+const BeforeAfterSlider = ({ beforeSrc, afterSrc }) => {
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isDragging, setIsDragging] = useState(false);
     const sliderRef = useRef(null);
@@ -33,6 +32,58 @@ export const WelcomeScreen = ({ onStart }) => {
             e.currentTarget.releasePointerCapture(e.pointerId);
         }
     };
+
+    return (
+        <div
+            ref={sliderRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className="relative aspect-[4/5] w-full rounded-2xl overflow-hidden border border-white/15 bg-black/50 touch-none select-none"
+        >
+            <img
+                src={beforeSrc}
+                alt="Gaming room before transformation"
+                className="absolute inset-0 w-full h-full object-cover"
+                draggable={false}
+            />
+            <div
+                className="absolute inset-0 overflow-hidden"
+                style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
+            >
+                <img
+                    src={afterSrc}
+                    alt="Gaming room after transformation"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    draggable={false}
+                />
+            </div>
+            <div
+                className="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
+            />
+            <div
+                className="absolute top-1/2 h-10 w-10 rounded-full border-2 border-white bg-black/70 backdrop-blur-sm flex items-center justify-center text-white font-black text-sm"
+                style={{ left: `${sliderPosition}%`, transform: "translate(-50%, -50%)" }}
+            >
+                <>
+                    <span className="translate-x-[-2px]">|</span>
+                    <span className="translate-x-[2px]">|</span>
+                </>
+            </div>
+            <div className="absolute left-3 top-3 px-2.5 py-1 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold tracking-widest text-white uppercase">
+                Before
+            </div>
+            <div className="absolute right-3 top-3 px-2.5 py-1 rounded-full bg-black/70 border border-cyan-300/40 text-[10px] font-bold tracking-widest text-cyan-200 uppercase">
+                After
+            </div>
+        </div>
+    );
+};
+
+export const WelcomeScreen = ({ onStart }) => {
+    const { setVerifiedEmail } = useApp();
 
     const handleAdminLogin = () => {
         const input = window.prompt("Enter admin email");
@@ -98,50 +149,10 @@ export const WelcomeScreen = ({ onStart }) => {
                         <p className="text-xs font-bold tracking-[0.22em] text-cyan-300 uppercase">Showcase</p>
                         <h2 className="mt-2 text-2xl font-black text-white">Before / After Gaming Room Upgrades</h2>
                     </div>
-                    <div
-                        ref={sliderRef}
-                        onPointerDown={handlePointerDown}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
-                        onPointerCancel={handlePointerUp}
-                        className="relative aspect-[4/5] w-full rounded-2xl overflow-hidden border border-white/15 bg-black/50 touch-none select-none"
-                    >
-                        <img
-                            src="/sample-before.jpg"
-                            alt="Gaming room before transformation"
-                            className="absolute inset-0 w-full h-full object-cover"
-                            draggable={false}
-                        />
-                        <div
-                            className="absolute inset-0 overflow-hidden"
-                            style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
-                        >
-                            <img
-                                src="/sample-after.jpg"
-                                alt="Gaming room after transformation"
-                                className="absolute inset-0 w-full h-full object-cover"
-                                draggable={false}
-                            />
-                        </div>
-                        <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.8)]"
-                            style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
-                        />
-                        <div
-                            className="absolute top-1/2 h-10 w-10 rounded-full border-2 border-white bg-black/70 backdrop-blur-sm flex items-center justify-center text-white font-black text-sm"
-                            style={{ left: `${sliderPosition}%`, transform: "translate(-50%, -50%)" }}
-                        >
-                            <>
-                                <span className="translate-x-[-2px]">|</span>
-                                <span className="translate-x-[2px]">|</span>
-                            </>
-                        </div>
-                        <div className="absolute left-3 top-3 px-2.5 py-1 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold tracking-widest text-white uppercase">
-                            Before
-                        </div>
-                        <div className="absolute right-3 top-3 px-2.5 py-1 rounded-full bg-black/70 border border-cyan-300/40 text-[10px] font-bold tracking-widest text-cyan-200 uppercase">
-                            After
-                        </div>
+                    <div className="grid grid-cols-1 gap-5">
+                        <BeforeAfterSlider beforeSrc="/before1.jpg" afterSrc="/after1.jpg" />
+                        <BeforeAfterSlider beforeSrc="/before2.jpg" afterSrc="/after2.jpg" />
+                        <BeforeAfterSlider beforeSrc="/before3.jpg" afterSrc="/after3.jpg" />
                     </div>
                 </div>
             </section>
