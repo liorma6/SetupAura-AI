@@ -724,7 +724,7 @@ app.post(
       const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
       console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
       const themeConfig = resolveThemeConfig(activeTheme);
-      const enhancedPrompt = `Transform this photo into a high-end room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with atmospheric accents that match the theme, add a premium desk setup, and MUST include a premium chair or seating that perfectly fits the ${themeConfig.label} aesthetic. Make it look like a real interior photograph.`;
+      const enhancedPrompt = `Transform this photo into a high-end room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with atmospheric accents that match the theme, add a premium desk setup, and MUST include a premium chair or seating that perfectly fits the ${themeConfig.label} aesthetic. Make it look like a real interior photograph. Fill the entire canvas. No borders, no black bars, no letterboxing, no padding.`;
 
       const TIMEOUT_MS = 90000;
       const aiResponse = await Promise.race([
@@ -769,9 +769,8 @@ app.post(
       ensureUploadDirs();
       const filepath = path.join(IMAGES_DIR, filename);
       const generatedBuffer = Buffer.from(generatedBase64, "base64");
-      const finalGeneratedBuffer = hasUnlockedAccess
-        ? generatedBuffer
-        : await applyWatermarkForFreeUser(generatedBuffer);
+      const processedBuffer = await sharp(generatedBuffer).trim({ threshold: 10 }).resize(inputWidth || 1024, inputHeight || 1024, { fit: "cover", position: "centre" }).jpeg({ quality: 92 }).toBuffer();
+      const finalGeneratedBuffer = hasUnlockedAccess ? processedBuffer : await applyWatermarkForFreeUser(processedBuffer);
       await fs.promises.writeFile(filepath, finalGeneratedBuffer);
       console.log(`[Saved] ${filepath}`);
       const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
