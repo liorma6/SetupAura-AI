@@ -336,7 +336,7 @@ export const RecommendationsScreen = () => {
             <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
                 <div className="animate-spin h-16 w-16 border-4 border-purple-500 border-t-transparent rounded-full mb-8" />
                 <h2 className="text-2xl font-bold animate-pulse">Designing your dream room...</h2>
-                <p className="text-gray-400 mt-4">This takes about a minute. We'll also email you the result!</p>
+                <p className="text-gray-400 mt-4">This takes about a minute. We'll also email you the result! You can safely leave this page and come back later.</p>
             </div>
         );
     }

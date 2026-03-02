@@ -46,7 +46,15 @@ const ReviewSection = ({
   </div>
 );
 
-const ShoppingList = ({ items }) => {
+const ShoppingList = ({ items, loading }) => {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+        Loading shopping list...
+      </div>
+    );
+  }
+
   if (!items || !items.length) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
@@ -101,6 +109,7 @@ export const ResultScreen = () => {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [shoppingItems, setShoppingItems] = useState([]);
+  const [shoppingLoading, setShoppingLoading] = useState(false);
   const [resultLoading, setResultLoading] = useState(false);
   const [resultError, setResultError] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
@@ -251,6 +260,37 @@ export const ResultScreen = () => {
     };
   }, [displayImageUrl]);
 
+  useEffect(() => {
+    let isMounted = true;
+    if (
+      hasUnlockedAccess &&
+      displayImageUrl &&
+      shoppingItems.length === 0 &&
+      !resultLoading &&
+      !shoppingLoading
+    ) {
+      setShoppingLoading(true);
+      fetch(`${API_URL}/api/analyze-room`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: displayImageUrl,
+          selectedTheme: "Premium Gaming",
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (isMounted && data?.items?.length > 0) setShoppingItems(data.items);
+        })
+        .finally(() => {
+          if (isMounted) setShoppingLoading(false);
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [hasUnlockedAccess, displayImageUrl, shoppingItems.length, resultLoading]);
+
   const handleSubmitReview = async () => {
     if (rating === 0) {
       alert("Please select a star rating first.");
@@ -377,7 +417,7 @@ export const ResultScreen = () => {
           {hasUnlockedAccess ? (
             <div className="space-y-4">
               {/* רשימה מידית לפרימיום בלי כפתורים ובלי טעינות */}
-              <ShoppingList items={shoppingItems} />
+              <ShoppingList items={shoppingItems} loading={shoppingLoading} />
             </div>
           ) : (
             <div className="space-y-4">
