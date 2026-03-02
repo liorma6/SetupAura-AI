@@ -646,15 +646,6 @@ app.post(
       } catch {}
     }
 
-    const size =
-      inputWidth > 0 && inputHeight > 0
-        ? inputHeight > inputWidth
-          ? "1024x1792"
-          : inputWidth > inputHeight
-            ? "1792x1024"
-            : "1024x1024"
-        : "1792x1024";
-
     const base64Data = imageBuffer.toString("base64");
     const imageFile = await toFile(imageBuffer, inputFilename, {
       type: inputMimeType,
@@ -712,20 +703,31 @@ app.post(
 
     const TIMEOUT_MS = 90000;
     const aiResponse = await Promise.race([
-      openai.images.edit({
-        model: "gpt-image-1.5",
-        image: imageFile,
-        prompt: enhancedPrompt,
-        size,
-        extra_body: {
-          width: inputWidth,
-          height: inputHeight,
-        },
-        quality: "high",
-        input_fidelity: "high",
-        output_format: "jpeg",
-        output_compression: 90,
-      }),
+      (async () => {
+        const formData = new FormData();
+        formData.append("model", "gpt-image-1.5");
+        formData.append("image", imageFile, inputFilename);
+        formData.append("prompt", enhancedPrompt);
+        formData.append("width", String(inputWidth || 1024));
+        formData.append("height", String(inputHeight || 1024));
+        formData.append("quality", "high");
+        formData.append("input_fidelity", "high");
+        formData.append("output_format", "jpeg");
+        formData.append("output_compression", "90");
+
+        const response = await fetch("https://api.openai.com/v1/images/edits", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        const json = await response.json();
+        if (!response.ok) {
+          throw new Error(json?.error?.message || "OpenAI image edit failed");
+        }
+        return json;
+      })(),
       new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("OpenAI request timed out after 90 seconds")),
@@ -1079,6 +1081,7 @@ app.post("/api/auth/request-otp", requestOtpHandler);
 app.post("/api/auth/verify-otp", verifyOtpHandler);
 
 app.post("/api/gumroad-webhook", async (req, res) => {
+  console.log(">>> INCOMING GUMROAD REQUEST:", req.method, req.originalUrl, "BODY:", JSON.stringify(req.body));
   console.log(
     ">> GUMROAD PING AT:",
     new Date().toISOString(),
@@ -1112,17 +1115,24 @@ app.post("/api/gumroad-webhook", async (req, res) => {
     return res.status(200).json({ success: true, credited: false });
   }
 
-  const existingLead = getUserRecord(email);
-  const currentTokens = Math.max(
-    0,
-    Math.floor(Number(existingLead?.tokensRemaining) || 0),
-  );
+  const leads = readLeads();
+  const leadIndex = getLeadIndexByEmail(leads, email);
+  const existingLead = leadIndex >= 0 ? leads[leadIndex] : null;
+  const currentTokens = Math.max(0, Math.floor(Number(existingLead?.tokensRemaining) || 0));
   const nextTokens = currentTokens + tokensToAdd;
-
-  upsertLeadRecord(email, {
+  const updatedLead = {
+    email,
+    timestamp: existingLead?.timestamp || new Date().toISOString(),
     premium: true,
     tokensRemaining: nextTokens,
-  });
+    testMode: Boolean(existingLead?.testMode),
+  };
+  if (leadIndex >= 0) {
+    leads[leadIndex] = { ...leads[leadIndex], ...updatedLead };
+  } else {
+    leads.push(updatedLead);
+  }
+  fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
 
   const price =
     Number(payload?.price) ||
