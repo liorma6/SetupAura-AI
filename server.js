@@ -86,10 +86,7 @@ const uploadStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
-    cb(
-      null,
-      `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`,
-    );
+    cb(null, `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
   },
 });
 const upload = multer({ storage: uploadStorage });
@@ -172,7 +169,9 @@ const upsertLeadRecord = (email, updates = {}) => {
 };
 
 const getUserRecord = (email) => {
-  const normalized = String(email || "").trim().toLowerCase();
+  const normalized = String(email || "")
+    .trim()
+    .toLowerCase();
   return readLeads().find(
     (entry) => entry && entry.email && entry.email.toLowerCase() === normalized,
   );
@@ -202,7 +201,9 @@ const trackPosthogEvent = async (event, properties = {}) => {
 
 const buildFrontendUrl = (targetPath = "/", query = {}) => {
   const pathValue = String(targetPath || "/").trim();
-  const normalizedPath = pathValue.startsWith("/") ? pathValue : `/${pathValue}`;
+  const normalizedPath = pathValue.startsWith("/")
+    ? pathValue
+    : `/${pathValue}`;
   const params = new URLSearchParams();
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && String(value).trim() !== "") {
@@ -582,243 +583,253 @@ app.post(
     return next();
   },
   async (req, res) => {
-  const { image, email, theme } = req.body || {};
+    const { image, email, theme } = req.body || {};
 
-  if (!image && !req.file) return res.status(400).json({ error: "No image provided" });
-  if (!email || email.trim() === "")
-    return res.status(400).json({ error: "Email required" });
+    if (!image && !req.file)
+      return res.status(400).json({ error: "No image provided" });
+    if (!email || email.trim() === "")
+      return res.status(400).json({ error: "Email required" });
 
-  const token = process.env.OPENAI_API_KEY || process.env.OpenAi_TOKEN;
-  if (!token) return res.status(500).json({ error: "Missing OpenAI API Key" });
+    const token = process.env.OPENAI_API_KEY || process.env.OpenAi_TOKEN;
+    if (!token)
+      return res.status(500).json({ error: "Missing OpenAI API Key" });
 
-  try {
-    const normalizedEmail = email.trim().toLowerCase();
-    const existingLead = getUserRecord(email.trim());
-    const hasUnlockedAccess = Boolean(existingLead?.premium);
-
-    if (!existingLead) {
-      return res.status(403).json({
-        error: "OUT_OF_TOKENS",
-        message: "Out of tokens",
-        paywall: true,
-      });
-    }
-    const currentTokens = Math.max(0, Number(existingLead?.tokensRemaining ?? 0));
-    if (currentTokens <= 0) {
-      return res.status(403).json({
-        error: "OUT_OF_TOKENS",
-        message: "Out of tokens",
-        paywall: true,
-      });
-    }
-
-    let imageBuffer;
-    let inputFilename = "input.jpg";
-    let inputMimeType = "image/jpeg";
-    let originalImageUrl = "";
-    let inputWidth = 0;
-    let inputHeight = 0;
-
-    if (req.file?.path) {
-      imageBuffer = fs.readFileSync(req.file.path);
-      inputFilename = req.file.originalname || path.basename(req.file.path);
-      inputMimeType =
-        req.file.mimetype || detectMimeType(req.file.originalname || "");
-      originalImageUrl = `https://${req.get("host")}/uploads/${path.basename(req.file.path)}`;
-      try {
-        const dimensions = sizeOf(req.file.path);
-        inputWidth = Number(dimensions?.width) || 0;
-        inputHeight = Number(dimensions?.height) || 0;
-      } catch {}
-    } else {
-      const imageString = String(image || "");
-      const hasPrefix = imageString.includes(";base64,");
-      const base64Data = hasPrefix
-        ? imageString.split(";base64,").pop()
-        : imageString;
-      const mimeTypeMatch = hasPrefix
-        ? imageString.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)
-        : null;
-      inputMimeType = mimeTypeMatch?.[1] || "image/jpeg";
-      imageBuffer = Buffer.from(base64Data, "base64");
-      const extFromMime = inputMimeType.split("/")[1] || "jpg";
-      inputFilename = `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extFromMime}`;
-      ensureUploadDirs();
-      fs.writeFileSync(path.join(UPLOADS_DIR, inputFilename), imageBuffer);
-      originalImageUrl = `https://${req.get("host")}/uploads/${inputFilename}`;
-    }
-
-    if (!inputWidth || !inputHeight) {
-      try {
-        const metadata = await sharp(imageBuffer).metadata();
-        inputWidth = Number(metadata?.width) || 0;
-        inputHeight = Number(metadata?.height) || 0;
-      } catch {}
-    }
-    const size =
-      inputWidth > 0 && inputHeight > 0
-        ? inputHeight > inputWidth
-          ? "1024x1792"
-          : inputWidth > inputHeight
-            ? "1792x1024"
-            : "1024x1024"
-        : "1792x1024";
-
-    const base64Data = imageBuffer.toString("base64");
-    const imageFile = await toFile(imageBuffer, inputFilename, {
-      type: inputMimeType,
-    });
-
-    const openai = new OpenAI({ apiKey: token });
-
-    let isValidRoom = true;
     try {
-      const visionCheck = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Analyze this image. Is it a picture of a room, desk, computer setup, office space, bedroom, or living space? Reply ONLY with the single word TRUE or FALSE.",
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/png;base64,${base64Data}`,
-                  detail: "low",
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 5,
-      });
-      isValidRoom = visionCheck.choices[0]?.message?.content
-        ?.trim()
-        .toUpperCase()
-        .startsWith("TRUE");
-    } catch (visionErr) {
-      console.error("[Vision] API error:", visionErr.message);
-      return res
-        .status(500)
-        .json({ error: "VISION_API_ERROR", message: "Image analysis failed." });
-    }
+      const normalizedEmail = email.trim().toLowerCase();
+      const existingLead = getUserRecord(email.trim());
+      const hasUnlockedAccess = Boolean(existingLead?.premium);
 
-    if (!isValidRoom) {
-      console.log(`[Validation] Invalid image rejected for: ${email}`);
-      return res.status(400).json({
-        error: "INVALID_IMAGE",
-        message: "Please upload a picture of a room.",
-      });
-    }
-
-    const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
-    console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
-    const themeConfig = resolveThemeConfig(activeTheme);
-    const enhancedPrompt = `Transform this photo into a high-end room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with atmospheric accents that match the theme, add a premium desk setup, and MUST include a premium chair or seating that perfectly fits the ${themeConfig.label} aesthetic. Make it look like a real interior photograph.`;
-
-    const TIMEOUT_MS = 90000;
-    const aiResponse = await Promise.race([
-      (async () => {
-        const formData = new FormData();
-        formData.append("model", "gpt-image-1.5");
-        formData.append("image", imageFile, inputFilename);
-        formData.append("prompt", enhancedPrompt);
-        formData.append("size", size);
-        formData.append("quality", "high");
-        formData.append("input_fidelity", "high");
-        formData.append("output_format", "jpeg");
-        formData.append("output_compression", "90");
-
-        const response = await fetch("https://api.openai.com/v1/images/edits", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: formData,
+      if (!existingLead) {
+        return res.status(403).json({
+          error: "OUT_OF_TOKENS",
+          message: "Out of tokens",
+          paywall: true,
         });
-        const json = await response.json();
-        if (!response.ok) {
-          throw new Error(json?.error?.message || "OpenAI image edit failed");
-        }
-        return json;
-      })(),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("OpenAI request timed out after 90 seconds")),
-          TIMEOUT_MS,
-        ),
-      ),
-    ]);
+      }
+      const currentTokens = Math.max(
+        0,
+        Number(existingLead?.tokensRemaining ?? 0),
+      );
+      if (currentTokens <= 0) {
+        return res.status(403).json({
+          error: "OUT_OF_TOKENS",
+          message: "Out of tokens",
+          paywall: true,
+        });
+      }
 
-    const generatedBase64 = aiResponse.data[0].b64_json;
-    const filename = `gen-${Date.now()}.jpg`;
-    ensureUploadDirs();
-    const filepath = path.join(IMAGES_DIR, filename);
-    const generatedBuffer = Buffer.from(generatedBase64, "base64");
-    const finalGeneratedBuffer = hasUnlockedAccess
-      ? generatedBuffer
-      : await applyWatermarkForFreeUser(generatedBuffer);
-    await fs.promises.writeFile(filepath, finalGeneratedBuffer);
-    console.log(`[Saved] ${filepath}`);
-    const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
+      let imageBuffer;
+      let inputFilename = "input.jpg";
+      let inputMimeType = "image/jpeg";
+      let originalImageUrl = "";
+      let inputWidth = 0;
+      let inputHeight = 0;
 
-    let fullShoppingList = [];
-    try {
-      fullShoppingList = await analyzeRoomWithGemini({
-        mimeType: "image/jpeg",
-        data: generatedBase64,
-        selectedTheme: activeTheme,
+      if (req.file?.path) {
+        imageBuffer = fs.readFileSync(req.file.path);
+        inputFilename = req.file.originalname || path.basename(req.file.path);
+        inputMimeType =
+          req.file.mimetype || detectMimeType(req.file.originalname || "");
+        originalImageUrl = `https://${req.get("host")}/uploads/${path.basename(req.file.path)}`;
+        try {
+          const dimensions = sizeOf(req.file.path);
+          inputWidth = Number(dimensions?.width) || 0;
+          inputHeight = Number(dimensions?.height) || 0;
+        } catch {}
+      } else {
+        const imageString = String(image || "");
+        const hasPrefix = imageString.includes(";base64,");
+        const base64Data = hasPrefix
+          ? imageString.split(";base64,").pop()
+          : imageString;
+        const mimeTypeMatch = hasPrefix
+          ? imageString.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)
+          : null;
+        inputMimeType = mimeTypeMatch?.[1] || "image/jpeg";
+        imageBuffer = Buffer.from(base64Data, "base64");
+        const extFromMime = inputMimeType.split("/")[1] || "jpg";
+        inputFilename = `upload-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extFromMime}`;
+        ensureUploadDirs();
+        fs.writeFileSync(path.join(UPLOADS_DIR, inputFilename), imageBuffer);
+        originalImageUrl = `https://${req.get("host")}/uploads/${inputFilename}`;
+      }
+
+      if (!inputWidth || !inputHeight) {
+        try {
+          const metadata = await sharp(imageBuffer).metadata();
+          inputWidth = Number(metadata?.width) || 0;
+          inputHeight = Number(metadata?.height) || 0;
+        } catch {}
+      }
+      const size =
+        inputWidth > 0 && inputHeight > 0
+          ? inputHeight > inputWidth
+            ? "1024x1536"
+            : inputWidth > inputHeight
+              ? "1536x1024"
+              : "1024x1024"
+          : "1536x1024";
+
+      const base64Data = imageBuffer.toString("base64");
+      const imageFile = await toFile(imageBuffer, inputFilename, {
+        type: inputMimeType,
       });
-    } catch (shoppingErr) {
-      console.error("[SHOPPING_LIST_ERROR]", shoppingErr.message);
-    }
 
-    const metadataPayload = {
-      resultId: filename,
-      userEmail: email.trim(),
-      theme: activeTheme,
-      originalImageUrl,
-      generatedImageUrl: imageUrl,
-      shoppingList: fullShoppingList,
-      timestamp: new Date().toISOString(),
-    };
-    const metadataFilePath = path.join(
-      METADATA_DIR,
-      `${path.parse(filename).name}.json`,
-    );
-    ensureUploadDirs();
-    await fs.promises.writeFile(
-      metadataFilePath,
-      JSON.stringify(metadataPayload, null, 2),
-    );
-    console.log(`[Saved Metadata] ${metadataFilePath}`);
+      const openai = new OpenAI({ apiKey: token });
 
-    const lockedShoppingList = buildLockedShoppingList();
+      let isValidRoom = true;
+      try {
+        const visionCheck = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Analyze this image. Is it a picture of a room, desk, computer setup, office space, bedroom, or living space? Reply ONLY with the single word TRUE or FALSE.",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:image/png;base64,${base64Data}`,
+                    detail: "low",
+                  },
+                },
+              ],
+            },
+          ],
+          max_tokens: 5,
+        });
+        isValidRoom = visionCheck.choices[0]?.message?.content
+          ?.trim()
+          .toUpperCase()
+          .startsWith("TRUE");
+      } catch (visionErr) {
+        console.error("[Vision] API error:", visionErr.message);
+        return res.status(500).json({
+          error: "VISION_API_ERROR",
+          message: "Image analysis failed.",
+        });
+      }
 
-    const tokensRemaining = Math.max(0, currentTokens - 1);
-    upsertLeadRecord(email.trim(), {
-      premium: Boolean(existingLead?.premium),
-      testMode: Boolean(existingLead?.testMode),
-      tokensRemaining,
-    });
+      if (!isValidRoom) {
+        console.log(`[Validation] Invalid image rejected for: ${email}`);
+        return res.status(400).json({
+          error: "INVALID_IMAGE",
+          message: "Please upload a picture of a room.",
+        });
+      }
 
-    res.json({
-      resultId: filename,
-      imageUrl,
-      originalImageUrl,
-      shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
-      shoppingListUnlocked: hasUnlockedAccess,
-      tokensRemaining,
-      isPremium: Boolean(existingLead?.premium),
-      testMode: Boolean(existingLead?.testMode),
-    });
+      const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
+      console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
+      const themeConfig = resolveThemeConfig(activeTheme);
+      const enhancedPrompt = `Transform this photo into a high-end room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with atmospheric accents that match the theme, add a premium desk setup, and MUST include a premium chair or seating that perfectly fits the ${themeConfig.label} aesthetic. Make it look like a real interior photograph.`;
 
-    if (process.env.EMAIL_USER && email) {
-      const redirectLink = buildFrontendUrl("/result", { id: filename });
-      const adminEmailBody = `
+      const TIMEOUT_MS = 90000;
+      const aiResponse = await Promise.race([
+        (async () => {
+          const formData = new FormData();
+          formData.append("model", "gpt-image-1.5");
+          formData.append("image", imageFile, inputFilename);
+          formData.append("prompt", enhancedPrompt);
+          formData.append("size", size);
+          formData.append("quality", "high");
+          formData.append("input_fidelity", "high");
+          formData.append("output_format", "jpeg");
+          formData.append("output_compression", "90");
+
+          const response = await fetch(
+            "https://api.openai.com/v1/images/edits",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              body: formData,
+            },
+          );
+          const json = await response.json();
+          if (!response.ok) {
+            throw new Error(json?.error?.message || "OpenAI image edit failed");
+          }
+          return json;
+        })(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () =>
+              reject(new Error("OpenAI request timed out after 90 seconds")),
+            TIMEOUT_MS,
+          ),
+        ),
+      ]);
+
+      const generatedBase64 = aiResponse.data[0].b64_json;
+      const filename = `gen-${Date.now()}.jpg`;
+      ensureUploadDirs();
+      const filepath = path.join(IMAGES_DIR, filename);
+      const generatedBuffer = Buffer.from(generatedBase64, "base64");
+      const finalGeneratedBuffer = hasUnlockedAccess
+        ? generatedBuffer
+        : await applyWatermarkForFreeUser(generatedBuffer);
+      await fs.promises.writeFile(filepath, finalGeneratedBuffer);
+      console.log(`[Saved] ${filepath}`);
+      const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
+
+      let fullShoppingList = [];
+      try {
+        fullShoppingList = await analyzeRoomWithGemini({
+          mimeType: "image/jpeg",
+          data: generatedBase64,
+          selectedTheme: activeTheme,
+        });
+      } catch (shoppingErr) {
+        console.error("[SHOPPING_LIST_ERROR]", shoppingErr.message);
+      }
+
+      const metadataPayload = {
+        resultId: filename,
+        userEmail: email.trim(),
+        theme: activeTheme,
+        originalImageUrl,
+        generatedImageUrl: imageUrl,
+        shoppingList: fullShoppingList,
+        timestamp: new Date().toISOString(),
+      };
+      const metadataFilePath = path.join(
+        METADATA_DIR,
+        `${path.parse(filename).name}.json`,
+      );
+      ensureUploadDirs();
+      await fs.promises.writeFile(
+        metadataFilePath,
+        JSON.stringify(metadataPayload, null, 2),
+      );
+      console.log(`[Saved Metadata] ${metadataFilePath}`);
+
+      const lockedShoppingList = buildLockedShoppingList();
+
+      const tokensRemaining = Math.max(0, currentTokens - 1);
+      upsertLeadRecord(email.trim(), {
+        premium: Boolean(existingLead?.premium),
+        testMode: Boolean(existingLead?.testMode),
+        tokensRemaining,
+      });
+
+      res.json({
+        resultId: filename,
+        imageUrl,
+        originalImageUrl,
+        shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
+        shoppingListUnlocked: hasUnlockedAccess,
+        tokensRemaining,
+        isPremium: Boolean(existingLead?.premium),
+        testMode: Boolean(existingLead?.testMode),
+      });
+
+      if (process.env.EMAIL_USER && email) {
+        const redirectLink = buildFrontendUrl("/result", { id: filename });
+        const adminEmailBody = `
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
                         <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>
                         <p style="color:#cbd5e1;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
@@ -830,7 +841,7 @@ app.post(
                     </div>
                 `;
 
-      const regularEmailBody = `
+        const regularEmailBody = `
                     <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
                         <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
                         <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
@@ -841,34 +852,36 @@ app.post(
                         </div>
                     </div>
                 `;
-      transporter
-        .sendMail({
-          from: '"SetupAura AI" <noreply@setupaura.com>',
-          to: email.trim(),
-          subject: hasUnlockedAccess
-            ? "Your Full Design + Shopping List"
-            : "Your Design Is Ready + Unlock Shopping List",
-          html: hasUnlockedAccess ? adminEmailBody : regularEmailBody,
-          attachments: [
-            {
-              filename: "your-design.jpg",
-              content: finalGeneratedBuffer,
-              cid: "design_image",
-            },
-          ],
-        })
-        .then(() => console.log(`[Email] Sent to ${email}`))
-        .catch((mailErr) => console.error("[Email] Failed:", mailErr.message));
+        transporter
+          .sendMail({
+            from: '"SetupAura AI" <noreply@setupaura.com>',
+            to: email.trim(),
+            subject: hasUnlockedAccess
+              ? "Your Full Design + Shopping List"
+              : "Your Design Is Ready + Unlock Shopping List",
+            html: hasUnlockedAccess ? adminEmailBody : regularEmailBody,
+            attachments: [
+              {
+                filename: "your-design.jpg",
+                content: finalGeneratedBuffer,
+                cid: "design_image",
+              },
+            ],
+          })
+          .then(() => console.log(`[Email] Sent to ${email}`))
+          .catch((mailErr) =>
+            console.error("[Email] Failed:", mailErr.message),
+          );
+      }
+    } catch (error) {
+      console.error("[ERROR]", error.message);
+      if (!res.headersSent) {
+        return res.status(500).json({
+          error: "SERVER_ERROR",
+          message: "An unexpected server error occurred.",
+        });
+      }
     }
-  } catch (error) {
-    console.error("[ERROR]", error.message);
-    if (!res.headersSent) {
-      return res.status(500).json({
-        error: "SERVER_ERROR",
-        message: "An unexpected server error occurred.",
-      });
-    }
-  }
   },
 );
 
@@ -1099,7 +1112,13 @@ app.post("/api/auth/verify-otp", verifyOtpHandler);
 
 app.post("/api/gumroad-webhook", async (req, res) => {
   console.log(">>> [WEBHOOK BODY]:", JSON.stringify(req.body));
-  console.log(">>> INCOMING GUMROAD REQUEST:", req.method, req.originalUrl, "BODY:", JSON.stringify(req.body));
+  console.log(
+    ">>> INCOMING GUMROAD REQUEST:",
+    req.method,
+    req.originalUrl,
+    "BODY:",
+    JSON.stringify(req.body),
+  );
   console.log(
     ">> GUMROAD PING AT:",
     new Date().toISOString(),
@@ -1136,7 +1155,10 @@ app.post("/api/gumroad-webhook", async (req, res) => {
   const leads = readLeads();
   const leadIndex = getLeadIndexByEmail(leads, email);
   const existingLead = leadIndex >= 0 ? leads[leadIndex] : null;
-  const currentTokens = Math.max(0, Math.floor(Number(existingLead?.tokensRemaining) || 0));
+  const currentTokens = Math.max(
+    0,
+    Math.floor(Number(existingLead?.tokensRemaining) || 0),
+  );
   const nextTokens = currentTokens + tokensToAdd;
   const updatedLead = {
     email,
@@ -1177,7 +1199,9 @@ app.post("/api/gumroad-webhook", async (req, res) => {
 });
 
 app.get("/api/user/:email", (req, res) => {
-  const email = String(req.params.email || "").trim().toLowerCase();
+  const email = String(req.params.email || "")
+    .trim()
+    .toLowerCase();
   if (!email) {
     return res.status(400).json({ error: "EMAIL_REQUIRED" });
   }
@@ -1192,18 +1216,19 @@ app.get("/api/user/:email", (req, res) => {
   }
 
   return res.status(200).json({
-    email: String(user.email || email).trim().toLowerCase(),
-    tokensRemaining: Math.max(
-      0,
-      Math.floor(Number(user.tokensRemaining) || 0),
-    ),
+    email: String(user.email || email)
+      .trim()
+      .toLowerCase(),
+    tokensRemaining: Math.max(0, Math.floor(Number(user.tokensRemaining) || 0)),
     isPremium: Boolean(user.premium),
   });
 });
 
 app.post("/api/admin-upgrade", (req, res) => {
   const { email, tokensToAdd } = req.body || {};
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   if (normalizedEmail !== ADMIN_EMAIL.toLowerCase()) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
