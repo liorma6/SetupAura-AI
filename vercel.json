@@ -1,20 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/api/gumroad-webhook",
-      "destination": "http://72.62.146.152/api/gumroad-webhook"
-    },
-    {
-      "source": "/api/auth/:path*",
-      "destination": "http://72.62.146.152/api/auth/:path*"
-    },
-    {
-      "source": "/api/user/:email",
-      "destination": "http://72.62.146.152/api/user/:email"
-    },
-    {
       "source": "/api/:path*",
       "destination": "http://72.62.146.152/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
