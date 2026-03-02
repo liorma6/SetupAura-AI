@@ -1313,6 +1313,29 @@ app.post("/api/admin/update-tokens", (req, res) => {
   });
 });
 
+app.post("/api/admin/toggle-premium", (req, res) => {
+  if (req.headers["admin-email"] !== ADMIN_EMAIL) {
+    return res.status(403).json({ error: "FORBIDDEN" });
+  }
+  const { targetEmail, isPremium } = req.body;
+  const normalizedEmail = String(targetEmail || "")
+    .trim()
+    .toLowerCase();
+
+  const leads = readLeads();
+  const leadIndex = getLeadIndexByEmail(leads, normalizedEmail);
+  if (leadIndex < 0) return res.status(404).json({ error: "USER_NOT_FOUND" });
+
+  leads[leadIndex].premium = Boolean(isPremium);
+  fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
+
+  return res.json({
+    success: true,
+    email: normalizedEmail,
+    isPremium: leads[leadIndex].premium,
+  });
+});
+
 app.post("/api/admin-upgrade", (req, res) => {
   const { email, tokensToAdd } = req.body || {};
   const normalizedEmail = String(email || "")
