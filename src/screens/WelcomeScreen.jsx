@@ -1,99 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { Sparkles, ShieldCheck, X, RotateCcw } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Sparkles, X, ShieldCheck, RotateCcw } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
   `${window.location.protocol}//${window.location.hostname}:3000`;
-
-const BeforeAfterSlider = ({ beforeSrc, afterSrc }) => {
-  const [sliderPosition, setSliderPosition] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
-  const sliderRef = useRef(null);
-
-  const updateSliderPosition = (clientX) => {
-    if (!sliderRef.current) return;
-    const rect = sliderRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const ratio = Math.min(Math.max(x / rect.width, 0), 1);
-    setSliderPosition(ratio * 100);
-  };
-
-  const handlePointerDown = (e) => {
-    setIsDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-    updateSliderPosition(e.clientX);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isDragging) return;
-    updateSliderPosition(e.clientX);
-  };
-
-  const handlePointerUp = (e) => {
-    setIsDragging(false);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  };
-
-  return (
-    <div
-      ref={sliderRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      className="relative aspect-square md:aspect-[4/5] w-full rounded-2xl overflow-hidden border border-white/15 bg-black/50 touch-none select-none"
-    >
-      <img
-        src={beforeSrc}
-        alt="Gaming room before transformation"
-        className="absolute inset-0 w-full h-full object-cover"
-        draggable={false}
-      />
-      <div
-        className="absolute inset-0 overflow-hidden"
-        style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
-      >
-        <img
-          src={afterSrc}
-          alt="Gaming room after transformation"
-          className="absolute inset-0 w-full h-full object-cover"
-          draggable={false}
-        />
-      </div>
-      <div
-        className="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.8)]"
-        style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
-      />
-      <div
-        className="absolute top-1/2 h-10 w-10 rounded-full border-2 border-white bg-black/70 backdrop-blur-sm flex items-center justify-center text-white font-black text-sm"
-        style={{
-          left: `${sliderPosition}%`,
-          transform: "translate(-50%, -50%)",
-        }}
-      >
-        <>
-          <span className="translate-x-[-2px]">|</span>
-          <span className="translate-x-[2px]">|</span>
-        </>
-      </div>
-      <div className="absolute left-3 top-3 px-2.5 py-1 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold tracking-widest text-white uppercase">
-        Before
-      </div>
-      <div className="absolute right-3 top-3 px-2.5 py-1 rounded-full bg-black/70 border border-cyan-300/40 text-[10px] font-bold tracking-widest text-cyan-200 uppercase">
-        After
-      </div>
-    </div>
-  );
-};
-
 const emptyOtp = ["", "", "", "", "", ""];
 
 export const WelcomeScreen = ({ onStart }) => {
   const { verifiedEmail, setVerifiedEmail, setTokensRemaining, setIsPremium } =
     useApp();
+
+  const showcasePairs = [
+    { before: "/beforeLior.jpeg", after: "/afterLior.png" },
+    { before: "/beforeHila.JPG", after: "/afterHila.png" },
+    { before: "/beforeEric.jpg", after: "/afterEric_final.png" },
+  ];
 
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [step, setStep] = useState("email");
@@ -104,6 +26,8 @@ export const WelcomeScreen = ({ onStart }) => {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [authError, setAuthError] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const cooldownRef = useRef(null);
   const otpRefs = useRef([]);
 
@@ -238,7 +162,6 @@ export const WelcomeScreen = ({ onStart }) => {
       setAuthError("Please enter the full 6-digit code.");
       return;
     }
-
     setVerifyingOtp(true);
     setAuthError("");
     try {
@@ -274,6 +197,16 @@ export const WelcomeScreen = ({ onStart }) => {
     }
   };
 
+  const handleNextPair = () => {
+    setCurrentIndex((prev) => (prev + 1) % showcasePairs.length);
+  };
+
+  const handlePrevPair = () => {
+    setCurrentIndex((prev) =>
+      prev === 0 ? showcasePairs.length - 1 : prev - 1,
+    );
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-[#060811]">
       <section className="relative w-full min-h-[68vh] flex flex-col justify-center items-center text-center overflow-hidden px-8 py-14">
@@ -285,7 +218,6 @@ export const WelcomeScreen = ({ onStart }) => {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
         />
-
         <div className="absolute inset-0 bg-black/60" />
 
         <div className="relative z-10 flex flex-col items-center w-full max-w-md">
@@ -313,6 +245,7 @@ export const WelcomeScreen = ({ onStart }) => {
           </p>
         </div>
       </section>
+
       <section className="relative z-10 px-6 pb-12 -mt-2">
         <div className="w-full max-w-6xl mx-auto">
           <div className="mb-4 text-center">
@@ -323,19 +256,53 @@ export const WelcomeScreen = ({ onStart }) => {
               Before / After Gaming Room Upgrades
             </h2>
           </div>
-          <div className="grid grid-cols-3 gap-2 md:gap-5">
-            <BeforeAfterSlider
-              beforeSrc="/beforeLior.jpeg"
-              afterSrc="/afterLior.png"
-            />
-            <BeforeAfterSlider
-              beforeSrc="/beforeHila.JPG"
-              afterSrc="/afterHila.png"
-            />
-            <BeforeAfterSlider
-              beforeSrc="/beforeEric.jpg"
-              afterSrc="/afterEric_final.png"
-            />
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 md:p-5">
+            {/* THIS IS THE MAGIC LINE: flex-row ensures side-by-side everywhere */}
+            <div className="flex flex-row gap-2 md:gap-5">
+              <div className="w-1/2 min-w-0">
+                <p className="mb-2 text-[10px] font-bold tracking-[0.2em] text-gray-300 uppercase">
+                  BEFORE
+                </p>
+                <div className="relative aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden border border-white/15 bg-black/50">
+                  <img
+                    src={showcasePairs[currentIndex].before}
+                    alt="Room before transformation"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+              <div className="w-1/2 min-w-0">
+                <p className="mb-2 text-[10px] font-bold tracking-[0.2em] text-cyan-300 uppercase">
+                  AFTER
+                </p>
+                <div className="relative aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden border border-cyan-300/30 bg-black/50">
+                  <img
+                    src={showcasePairs[currentIndex].after}
+                    alt="Room after transformation"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-center gap-2 md:gap-3">
+              <button
+                onClick={handlePrevPair}
+                className="px-4 py-2 rounded-full border border-white/20 bg-white/5 text-white text-sm font-bold hover:bg-white/10 transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-400 font-semibold tracking-wider">
+                {currentIndex + 1} / {showcasePairs.length}
+              </span>
+              <button
+                onClick={handleNextPair}
+                className="px-4 py-2 rounded-full border border-cyan-300/30 bg-cyan-500/10 text-cyan-200 text-sm font-bold hover:bg-cyan-500/20 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </section>
