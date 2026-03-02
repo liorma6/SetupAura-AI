@@ -90,6 +90,7 @@ export const ResultScreen = () => {
     const [displayImageUrl, setDisplayImageUrl] = useState('');
     const [linkUnlocked, setLinkUnlocked] = useState(false);
     const [orientation, setOrientation] = useState('landscape');
+    const [resultOrientation, setResultOrientation] = useState('portrait');
 
     const preloadRequestRef = useRef(0);
     const initializedRef = useRef(false);
@@ -210,6 +211,20 @@ export const ResultScreen = () => {
         };
     }, [uploadedImage]);
 
+    useEffect(() => {
+        if (!displayImageUrl) return;
+        let cancelled = false;
+        const img = new Image();
+        img.onload = () => {
+            if (cancelled) return;
+            setResultOrientation(img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait');
+        };
+        img.src = displayImageUrl;
+        return () => {
+            cancelled = true;
+        };
+    }, [displayImageUrl]);
+
     const handleSubmitReview = async () => {
         if (rating === 0) {
             alert('Please select a star rating first.');
@@ -273,6 +288,7 @@ export const ResultScreen = () => {
     };
 
     const aspectClass = orientation === 'portrait' ? 'aspect-[2/3]' : 'aspect-[16/9]';
+    const isLandscapeResult = resultOrientation === 'landscape';
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center p-6 overflow-y-auto pb-20">
@@ -281,8 +297,8 @@ export const ResultScreen = () => {
             </header>
 
             <div className="w-full max-w-md mb-8">
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
+                <div className={`flex ${isLandscapeResult ? 'flex-col gap-4' : 'flex-row gap-3'}`}>
+                    <div className={isLandscapeResult ? 'w-full' : 'w-1/2'}>
                         <p className="text-xs font-bold text-gray-500 mb-1.5 tracking-wider">BEFORE</p>
                         <div className={`relative rounded-2xl overflow-hidden border border-white/10 bg-black/50 w-full ${aspectClass} flex items-center justify-center`}>
                             {uploadedImage ? (
@@ -292,7 +308,10 @@ export const ResultScreen = () => {
                             )}
                         </div>
                     </div>
-                    <div>
+                    {isLandscapeResult && (
+                        <div className="w-full text-center text-[10px] font-bold tracking-[0.2em] uppercase text-purple-300/80">After</div>
+                    )}
+                    <div className={isLandscapeResult ? 'w-full' : 'w-1/2'}>
                         <div className="flex items-center gap-2 mb-1.5">
                             <Sparkles className="w-3 h-3 text-purple-400" />
                             <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>

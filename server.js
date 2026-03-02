@@ -12,6 +12,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const require = createRequire(import.meta.url);
 require("dotenv").config();
+const sizeOf = require("image-size");
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -576,6 +577,8 @@ app.post(
     let inputFilename = "input.jpg";
     let inputMimeType = "image/jpeg";
     let originalImageUrl = "";
+    let inputWidth = 0;
+    let inputHeight = 0;
 
     if (req.file?.path) {
       imageBuffer = fs.readFileSync(req.file.path);
@@ -583,6 +586,11 @@ app.post(
       inputMimeType =
         req.file.mimetype || detectMimeType(req.file.originalname || "");
       originalImageUrl = `https://${req.get("host")}/uploads/${path.basename(req.file.path)}`;
+      try {
+        const dimensions = sizeOf(req.file.path);
+        inputWidth = Number(dimensions?.width) || 0;
+        inputHeight = Number(dimensions?.height) || 0;
+      } catch {}
     } else {
       const imageString = String(image || "");
       const hasPrefix = imageString.includes(";base64,");
@@ -600,6 +608,23 @@ app.post(
       fs.writeFileSync(path.join(UPLOADS_DIR, inputFilename), imageBuffer);
       originalImageUrl = `https://${req.get("host")}/uploads/${inputFilename}`;
     }
+
+    if (!inputWidth || !inputHeight) {
+      try {
+        const metadata = await sharp(imageBuffer).metadata();
+        inputWidth = Number(metadata?.width) || 0;
+        inputHeight = Number(metadata?.height) || 0;
+      } catch {}
+    }
+
+    const generationSize =
+      inputWidth > 0 && inputHeight > 0
+        ? inputWidth > inputHeight
+          ? "1536x1024"
+          : inputHeight > inputWidth
+            ? "1024x1536"
+            : "1024x1024"
+        : "1536x1024";
 
     const base64Data = imageBuffer.toString("base64");
     const imageFile = await toFile(imageBuffer, inputFilename, {
@@ -662,7 +687,7 @@ app.post(
         model: "gpt-image-1.5",
         image: imageFile,
         prompt: enhancedPrompt,
-        size: "1536x1024",
+        size: generationSize,
         quality: "high",
         input_fidelity: "high",
         output_format: "jpeg",
