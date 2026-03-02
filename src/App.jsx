@@ -5,6 +5,7 @@ import { ThemesScreen } from "./screens/ThemesScreen";
 import { RecommendationsScreen } from "./screens/RecommendationsScreen";
 import { ResultScreen } from "./screens/ResultScreen";
 import { PricingScreen } from "./screens/PricingScreen";
+import { AdminScreen } from "./screens/AdminScreen";
 import { AppProvider, useApp } from "./context/AppContext";
 import { Footer } from "./components/layout/Footer";
 import { PrivacyModal } from "./components/modals/PrivacyModal";
@@ -247,6 +248,11 @@ const InnerApp = () => {
       try {
         localStorage.setItem("setupaura_email", normalizedEmail);
       } catch {}
+      if (normalizedEmail === "liorma6@gmail.com") {
+        closeSignIn();
+        setScreen("admin");
+        return;
+      }
       closeSignIn();
     } catch (err) {
       setAuthError(err.message || "Verification failed");
@@ -307,6 +313,12 @@ const InnerApp = () => {
         return (
           <ScreenWrapper screenKey="pricing">
             <PricingScreen />
+          </ScreenWrapper>
+        );
+      case "admin":
+        return (
+          <ScreenWrapper screenKey="admin">
+            <AdminScreen />
           </ScreenWrapper>
         );
       default:

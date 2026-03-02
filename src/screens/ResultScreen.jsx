@@ -46,15 +46,7 @@ const ReviewSection = ({
   </div>
 );
 
-const ShoppingList = ({ items, loading }) => {
-  if (loading) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
-        Loading shopping list...
-      </div>
-    );
-  }
-
+const ShoppingList = ({ items }) => {
   if (!items || !items.length) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
@@ -109,7 +101,6 @@ export const ResultScreen = () => {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [shoppingItems, setShoppingItems] = useState([]);
-  const [shoppingLoading, setShoppingLoading] = useState(false);
   const [resultLoading, setResultLoading] = useState(false);
   const [resultError, setResultError] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
@@ -121,13 +112,10 @@ export const ResultScreen = () => {
   const preloadRequestRef = useRef(0);
   const initializedRef = useRef(false);
 
-  // בדיקה: האם המשתמש הוא פרימיום?
   const hasUnlockedAccess = Boolean(isPremium || linkUnlocked);
 
   useEffect(() => {
-    if (isPremium) {
-      setLinkUnlocked(true);
-    }
+    if (isPremium) setLinkUnlocked(true);
   }, [isPremium]);
 
   useEffect(() => {
@@ -169,25 +157,15 @@ export const ResultScreen = () => {
           );
           const data = await res.json();
 
-          if (!res.ok) {
-            throw new Error(data?.error || "Failed to load result");
-          }
-
+          if (!res.ok) throw new Error(data?.error || "Failed to load result");
           if (!isMounted) return;
 
-          if (data?.originalImageUrl) {
-            setUploadedImage(data.originalImageUrl);
-          }
-
+          if (data?.originalImageUrl) setUploadedImage(data.originalImageUrl);
           if (data?.imageUrl) {
             setGeneratedImage(data.imageUrl);
             sourceImageUrl = data.imageUrl;
           }
-
-          if (data?.userEmail) {
-            setVerifiedEmail(data.userEmail);
-          }
-
+          if (data?.userEmail) setVerifiedEmail(data.userEmail);
           if (data?.isPremium) {
             setIsPremium(true);
             setLinkUnlocked(true);
@@ -196,19 +174,12 @@ export const ResultScreen = () => {
           const unlockedFromResponse = Boolean(
             data?.shoppingListUnlocked || data?.isPremium,
           );
-          if (unlockedFromResponse) {
-            setLinkUnlocked(true);
-          }
-
-          if (Array.isArray(data?.shoppingList)) {
+          if (unlockedFromResponse) setLinkUnlocked(true);
+          if (Array.isArray(data?.shoppingList))
             setShoppingItems(data.shoppingList);
-          }
         }
 
-        if (!sourceImageUrl) {
-          return;
-        }
-
+        if (!sourceImageUrl) return;
         await preloadImage(sourceImageUrl);
       } catch (err) {
         if (!isMounted) return;
@@ -260,43 +231,11 @@ export const ResultScreen = () => {
     };
   }, [displayImageUrl]);
 
-  useEffect(() => {
-    let isMounted = true;
-    if (
-      hasUnlockedAccess &&
-      displayImageUrl &&
-      shoppingItems.length === 0 &&
-      !resultLoading &&
-      !shoppingLoading
-    ) {
-      setShoppingLoading(true);
-      fetch(`${API_URL}/api/analyze-room`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: displayImageUrl,
-          selectedTheme: "Premium Gaming",
-        }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (isMounted && data?.items?.length > 0) setShoppingItems(data.items);
-        })
-        .finally(() => {
-          if (isMounted) setShoppingLoading(false);
-        });
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [hasUnlockedAccess, displayImageUrl, shoppingItems.length, resultLoading]);
-
   const handleSubmitReview = async () => {
     if (rating === 0) {
       alert("Please select a star rating first.");
       return;
     }
-
     try {
       const res = await fetch(`${API_URL}/api/submit-review`, {
         method: "POST",
@@ -312,11 +251,8 @@ export const ResultScreen = () => {
     }
   };
 
-  // משתמש חינמי שילחץ על הרשימה הנעולה יועבר לתשלום
   const handleViewShoppingList = () => {
-    if (!hasUnlockedAccess) {
-      setScreen("pricing");
-    }
+    if (!hasUnlockedAccess) setScreen("pricing");
   };
 
   const aspectClass =
@@ -378,28 +314,17 @@ export const ResultScreen = () => {
                     alt="AI Result"
                   />
                 )}
-
               {!resultError && (resultLoading || imageLoading) && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40">
                   <div className="w-8 h-8 rounded-full border-2 border-purple-300/30 border-t-purple-300 animate-spin" />
                   <div className="w-32 h-2 rounded-full bg-white/10 animate-pulse" />
                 </div>
               )}
-
               {!resultLoading && !imageLoading && resultError && (
                 <div className="absolute inset-0 flex items-center justify-center text-red-400 text-sm px-4 text-center">
                   {resultError}
                 </div>
               )}
-
-              {!resultLoading &&
-                !imageLoading &&
-                !displayImageUrl &&
-                !resultError && (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                    No generated image yet
-                  </div>
-                )}
             </div>
           </div>
         </div>
@@ -413,15 +338,12 @@ export const ResultScreen = () => {
               Exact-Match Shopping List
             </h3>
           </div>
-
           {hasUnlockedAccess ? (
             <div className="space-y-4">
-              {/* רשימה מידית לפרימיום בלי כפתורים ובלי טעינות */}
-              <ShoppingList items={shoppingItems} loading={shoppingLoading} />
+              <ShoppingList items={shoppingItems} />
             </div>
           ) : (
             <div className="space-y-4">
-              {/* תצוגה מטושטשת למשתמש חינמי */}
               <div className="rounded-xl border border-white/10 bg-black/40 p-4 relative overflow-hidden">
                 <div className="blur-sm select-none pointer-events-none space-y-2 text-sm text-gray-300">
                   <div className="flex justify-between">
@@ -431,14 +353,6 @@ export const ResultScreen = () => {
                   <div className="flex justify-between">
                     <span>Dual Monitor Arm</span>
                     <span>$64.99</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cable Raceway Kit</span>
-                    <span>$18.50</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Desk Mat XL</span>
-                    <span>$24.90</span>
                   </div>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
