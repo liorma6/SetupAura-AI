@@ -16,6 +16,16 @@ const sizeOf = require("image-size");
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+app.use((req, res, next) => {
+  if (req.url.includes("gumroad")) {
+    console.log(
+      ">>> [GLOBAL DETECTOR] Gumroad Request detected!",
+      req.method,
+      req.url,
+    );
+  }
+  next();
+});
 const PORT = process.env.PORT || 3000;
 const SUCCESS_URL = "https://www.setupaura.online/";
 const PRICING_URL = "https://www.setupaura.online/pricing";
@@ -718,7 +728,7 @@ app.post(
         const response = await fetch("https://api.openai.com/v1/images/edits", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           },
           body: formData,
         });
@@ -1081,6 +1091,7 @@ app.post("/api/auth/request-otp", requestOtpHandler);
 app.post("/api/auth/verify-otp", verifyOtpHandler);
 
 app.post("/api/gumroad-webhook", async (req, res) => {
+  console.log(">>> [WEBHOOK BODY]:", JSON.stringify(req.body));
   console.log(">>> INCOMING GUMROAD REQUEST:", req.method, req.originalUrl, "BODY:", JSON.stringify(req.body));
   console.log(
     ">> GUMROAD PING AT:",
