@@ -785,14 +785,23 @@ app.post(
       const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
 
       let fullShoppingList = [];
-      try {
-        fullShoppingList = await analyzeRoomWithGemini({
-          mimeType: "image/jpeg",
-          data: generatedBase64,
-          selectedTheme: activeTheme,
-        });
-      } catch (shoppingErr) {
-        console.error("[SHOPPING_LIST_ERROR]", shoppingErr.message);
+      let retries = 3;
+      while (retries > 0 && fullShoppingList.length === 0) {
+        try {
+          fullShoppingList = await analyzeRoomWithGemini({
+            mimeType: "image/jpeg",
+            data: generatedBase64,
+            selectedTheme: activeTheme,
+          });
+          if (fullShoppingList.length > 0) break;
+        } catch (shoppingErr) {
+          console.error(
+            `[SHOPPING_LIST_ERROR] Retries left: ${retries - 1}`,
+            shoppingErr.message,
+          );
+        }
+        retries--;
+        if (retries > 0) await new Promise((res) => setTimeout(res, 2000));
       }
 
       const metadataPayload = {
