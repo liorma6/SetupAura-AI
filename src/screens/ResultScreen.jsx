@@ -46,7 +46,15 @@ const ReviewSection = ({
   </div>
 );
 
-const ShoppingList = ({ items }) => {
+const ShoppingList = ({ items, loading }) => {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300 animate-pulse">
+        Loading exact matches...
+      </div>
+    );
+  }
+
   if (!items || !items.length) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
@@ -101,7 +109,7 @@ export const ResultScreen = () => {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [shoppingItems, setShoppingItems] = useState([]);
-  const [resultLoading, setResultLoading] = useState(false);
+  const [resultLoading, setResultLoading] = useState(true); // מתחיל כ-true כדי לא להבהב
   const [resultError, setResultError] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
   const [displayImageUrl, setDisplayImageUrl] = useState("");
@@ -340,7 +348,7 @@ export const ResultScreen = () => {
           </div>
           {hasUnlockedAccess ? (
             <div className="space-y-4">
-              <ShoppingList items={shoppingItems} />
+              <ShoppingList items={shoppingItems} loading={resultLoading} />
             </div>
           ) : (
             <div className="space-y-4">

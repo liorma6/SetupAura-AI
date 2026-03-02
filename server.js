@@ -92,7 +92,7 @@ const uploadStorage = multer.diskStorage({
 const upload = multer({ storage: uploadStorage });
 const leadsPath = path.join(__dirname, "leads.json");
 const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
-const ADMIN_EMAIL = "admin_disabled@setupaura.com";
+const ADMIN_EMAIL = "liorma6@gmail.com";
 
 const readLeads = () => {
   try {
