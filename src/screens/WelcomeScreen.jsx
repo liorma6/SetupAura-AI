@@ -161,6 +161,12 @@ export const WelcomeScreen = ({ onStart }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleOpenSignIn = () => openSignIn();
+    window.addEventListener('open-sign-in', handleOpenSignIn);
+    return () => window.removeEventListener('open-sign-in', handleOpenSignIn);
+  }, [verifiedEmail]);
+
   const requestOtp = async (email) => {
     setSendingOtp(true);
     setAuthError("");
@@ -282,14 +288,6 @@ export const WelcomeScreen = ({ onStart }) => {
         <div className="absolute inset-0 bg-black/60" />
 
         <div className="relative z-10 flex flex-col items-center w-full max-w-md">
-          <div className="absolute -top-8 right-0 flex items-center gap-2">
-            <button
-              onClick={openSignIn}
-              className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] tracking-wide text-gray-200 hover:text-white hover:bg-white/20 transition-colors"
-            >
-              {verifiedEmail ? "Signed In" : "Sign In"}
-            </button>
-          </div>
           <div className="mb-10">
             <h1 className="text-5xl sm:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-4 drop-shadow-[0_0_20px_rgba(191,0,255,0.6)]">
               SetupAura

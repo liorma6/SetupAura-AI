@@ -27,6 +27,13 @@ const FRONTEND_URL = (
 
 const otpStore = new Map();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const POSTHOG_KEY =
+  process.env.POSTHOG_API_KEY || process.env.VITE_PUBLIC_POSTHOG_KEY || "";
+const POSTHOG_HOST = (
+  process.env.POSTHOG_HOST ||
+  process.env.VITE_PUBLIC_POSTHOG_HOST ||
+  "https://us.i.posthog.com"
+).replace(/\/+$/, "");
 
 setInterval(
   () => {
@@ -159,6 +166,28 @@ const getUserRecord = (email) => {
   return readLeads().find(
     (entry) => entry && entry.email && entry.email.toLowerCase() === normalized,
   );
+};
+
+const trackPosthogEvent = async (event, properties = {}) => {
+  if (!POSTHOG_KEY) return;
+  const distinctId =
+    String(properties.email || properties.distinct_id || "server").trim() ||
+    "server";
+  try {
+    await fetch(`${POSTHOG_HOST}/capture/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: POSTHOG_KEY,
+        event,
+        distinct_id: distinctId,
+        properties: {
+          ...properties,
+          distinct_id: distinctId,
+        },
+      }),
+    });
+  } catch {}
 };
 
 const buildFrontendUrl = (targetPath = "/", query = {}) => {
@@ -617,15 +646,6 @@ app.post(
       } catch {}
     }
 
-    const generationSize =
-      inputWidth > 0 && inputHeight > 0
-        ? inputWidth > inputHeight
-          ? "1536x1024"
-          : inputHeight > inputWidth
-            ? "1024x1536"
-            : "1024x1024"
-        : "1536x1024";
-
     const base64Data = imageBuffer.toString("base64");
     const imageFile = await toFile(imageBuffer, inputFilename, {
       type: inputMimeType,
@@ -687,7 +707,8 @@ app.post(
         model: "gpt-image-1.5",
         image: imageFile,
         prompt: enhancedPrompt,
-        size: generationSize,
+        width: inputWidth || undefined,
+        height: inputHeight || undefined,
         quality: "high",
         input_fidelity: "high",
         output_format: "jpeg",
@@ -1045,7 +1066,8 @@ app.post("/api/verify-otp", verifyOtpHandler);
 app.post("/api/auth/request-otp", requestOtpHandler);
 app.post("/api/auth/verify-otp", verifyOtpHandler);
 
-app.post("/api/gumroad-webhook", (req, res) => {
+app.post("/api/gumroad-webhook", async (req, res) => {
+  console.log(">> GUMROAD PING RECEIVED", JSON.stringify(req.body));
   const payload = req.body || {};
   const email = String(
     payload.email ||
@@ -1067,18 +1089,53 @@ app.post("/api/gumroad-webhook", (req, res) => {
   )
     .trim()
     .toLowerCase();
+  const normalizedProductName = productName.toLowerCase();
 
   if (!email) {
     return res.status(200).json({ success: true, credited: false });
   }
 
+  if (normalizedProductName.includes("elite")) {
+    const existingLead = getUserRecord(email);
+    const currentTokens = Math.max(
+      0,
+      Math.floor(Number(existingLead?.tokensRemaining) || 0),
+    );
+    const nextTokens = currentTokens + 100;
+    const price =
+      Number(payload?.price) ||
+      Number(payload?.purchase?.price) ||
+      Number(payload?.sale?.price) ||
+      Number(payload?.data?.price) ||
+      0;
+
+    upsertLeadRecord(email, {
+      premium: true,
+      tokensRemaining: nextTokens,
+    });
+
+    await trackPosthogEvent("Purchase", {
+      email,
+      value: price,
+      currency: "USD",
+      product_name: productName,
+      tokens_added: 100,
+    });
+
+    return res.status(200).json({
+      success: true,
+      credited: true,
+      email,
+      tokensAdded: 100,
+      tokensRemaining: nextTokens,
+    });
+  }
+
   let tokensToAdd = 0;
-  if (productName.includes("starter")) {
+  if (normalizedProductName.includes("starter")) {
     tokensToAdd = 10;
-  } else if (productName.includes("pro")) {
+  } else if (normalizedProductName.includes("pro")) {
     tokensToAdd = 40;
-  } else if (productName.includes("elite")) {
-    tokensToAdd = 100;
   }
 
   if (tokensToAdd <= 0) {
