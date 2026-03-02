@@ -127,7 +127,7 @@ const InnerApp = () => {
   };
 
   const openSignIn = () => {
-    setEmailInput((verifiedEmail || "").trim());
+    setEmailInput("");
     setAuthError("");
     setStep("email");
     setIsSignInOpen(true);

@@ -109,6 +109,7 @@ export const ResultScreen = () => {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [shoppingItems, setShoppingItems] = useState([]);
+  const [shoppingLoading, setShoppingLoading] = useState(false);
   const [resultLoading, setResultLoading] = useState(true); // מתחיל כ-true כדי לא להבהב
   const [resultError, setResultError] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
@@ -133,6 +134,12 @@ export const ResultScreen = () => {
     const params = new URLSearchParams(window.location.search);
     const resultId = params.get("id");
     let isMounted = true;
+    let didTimeoutWaitingForList = false;
+
+    const POLL_INTERVAL_MS = 1500;
+    const MAX_SHOPPING_WAIT_MS = 25000;
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const preloadImage = (url) =>
       new Promise((resolve, reject) => {
@@ -150,45 +157,102 @@ export const ResultScreen = () => {
         preloader.src = url;
       });
 
+    const fetchResultById = async (id) => {
+      const res = await fetch(`${API_URL}/api/result/${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load result");
+      return data;
+    };
+
+    const applyResultData = (data) => {
+      if (!data || !isMounted) return;
+      if (data?.originalImageUrl) setUploadedImage(data.originalImageUrl);
+      if (data?.imageUrl) setGeneratedImage(data.imageUrl);
+      if (data?.userEmail) setVerifiedEmail(data.userEmail);
+      if (data?.isPremium) setIsPremium(true);
+
+      const unlockedFromResponse = Boolean(
+        data?.shoppingListUnlocked || data?.isPremium,
+      );
+      if (unlockedFromResponse) setLinkUnlocked(true);
+    };
+
     const loadResult = async () => {
       setResultLoading(true);
       setImageLoading(true);
+      setShoppingLoading(false);
       setResultError("");
       setDisplayImageUrl("");
+      setShoppingItems([]);
 
       try {
         let sourceImageUrl = generatedImage || "";
+        let latestData = null;
 
         if (resultId) {
-          const res = await fetch(
-            `${API_URL}/api/result/${encodeURIComponent(resultId)}`,
-          );
-          const data = await res.json();
-
-          if (!res.ok) throw new Error(data?.error || "Failed to load result");
+          latestData = await fetchResultById(resultId);
           if (!isMounted) return;
-
-          if (data?.originalImageUrl) setUploadedImage(data.originalImageUrl);
-          if (data?.imageUrl) {
-            setGeneratedImage(data.imageUrl);
-            sourceImageUrl = data.imageUrl;
-          }
-          if (data?.userEmail) setVerifiedEmail(data.userEmail);
-          if (data?.isPremium) {
-            setIsPremium(true);
-            setLinkUnlocked(true);
-          }
-
-          const unlockedFromResponse = Boolean(
-            data?.shoppingListUnlocked || data?.isPremium,
-          );
-          if (unlockedFromResponse) setLinkUnlocked(true);
-          if (Array.isArray(data?.shoppingList))
-            setShoppingItems(data.shoppingList);
+          applyResultData(latestData);
+          if (latestData?.imageUrl) sourceImageUrl = latestData.imageUrl;
         }
 
-        if (!sourceImageUrl) return;
+        if (!sourceImageUrl) {
+          setResultError("No generated image found.");
+          return;
+        }
+
         await preloadImage(sourceImageUrl);
+        if (!isMounted) return;
+
+        const unlocked =
+          Boolean(latestData?.shoppingListUnlocked || latestData?.isPremium) ||
+          Boolean(isPremium || linkUnlocked);
+
+        if (!unlocked) {
+          if (Array.isArray(latestData?.shoppingList)) {
+            setShoppingItems(latestData.shoppingList);
+          }
+          return;
+        }
+
+        if (!resultId) {
+          if (Array.isArray(latestData?.shoppingList)) {
+            setShoppingItems(latestData.shoppingList);
+          }
+          return;
+        }
+
+        let resolvedItems = Array.isArray(latestData?.shoppingList)
+          ? latestData.shoppingList
+          : [];
+        let latestStatus = String(latestData?.shoppingListStatus || "").toLowerCase();
+        const startWait = Date.now();
+
+        if (resolvedItems.length === 0) {
+          setShoppingLoading(true);
+        }
+
+        while (
+          isMounted &&
+          resolvedItems.length === 0 &&
+          Date.now() - startWait < MAX_SHOPPING_WAIT_MS &&
+          latestStatus !== "failed"
+        ) {
+          await sleep(POLL_INTERVAL_MS);
+          if (!isMounted) return;
+          latestData = await fetchResultById(resultId);
+          applyResultData(latestData);
+          resolvedItems = Array.isArray(latestData?.shoppingList)
+            ? latestData.shoppingList
+            : [];
+          latestStatus = String(latestData?.shoppingListStatus || "").toLowerCase();
+        }
+
+        if (!isMounted) return;
+        if (resolvedItems.length === 0 && latestStatus !== "failed") {
+          didTimeoutWaitingForList = true;
+        }
+        setShoppingItems(resolvedItems);
       } catch (err) {
         if (!isMounted) return;
         setResultError(err.message || "Failed to load result");
@@ -196,6 +260,10 @@ export const ResultScreen = () => {
         if (!isMounted) return;
         setResultLoading(false);
         setImageLoading(false);
+        setShoppingLoading(false);
+        if (didTimeoutWaitingForList) {
+          console.warn("[ResultScreen] Shopping list wait timed out.");
+        }
       }
     };
 
@@ -348,7 +416,10 @@ export const ResultScreen = () => {
           </div>
           {hasUnlockedAccess ? (
             <div className="space-y-4">
-              <ShoppingList items={shoppingItems} loading={resultLoading} />
+              <ShoppingList
+                items={shoppingItems}
+                loading={resultLoading || shoppingLoading}
+              />
             </div>
           ) : (
             <div className="space-y-4">

@@ -93,6 +93,7 @@ const upload = multer({ storage: uploadStorage });
 const leadsPath = path.join(__dirname, "leads.json");
 const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
 const ADMIN_EMAIL = "liorma6@gmail.com";
+const shoppingListGenerationLocks = new Map();
 
 const readLeads = () => {
   try {
@@ -370,8 +371,15 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
     throw new Error("Image input is required");
   }
 
+  const resolveUploadsPath = (inputPath = "") => {
+    const relative = String(inputPath || "")
+      .replace(/^\/+/, "")
+      .trim();
+    return path.join(process.cwd(), relative);
+  };
+
   if (imageUrl.startsWith("/uploads/")) {
-    const localPath = path.join(__dirname, imageUrl);
+    const localPath = resolveUploadsPath(imageUrl);
     const fileBuffer = await fs.promises.readFile(localPath);
     return {
       mimeType: detectMimeType(localPath),
@@ -382,7 +390,7 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
     const urlObj = new URL(imageUrl);
     if (urlObj.pathname.startsWith("/uploads/")) {
-      const localPath = path.join(__dirname, urlObj.pathname);
+      const localPath = resolveUploadsPath(urlObj.pathname);
       if (fs.existsSync(localPath)) {
         const fileBuffer = await fs.promises.readFile(localPath);
         return {
@@ -554,6 +562,62 @@ const analyzeRoomWithGemini = async ({ mimeType, data, selectedTheme }) => {
   }
 
   return shoppingList;
+};
+
+const ensureShoppingListForResult = async ({
+  resultId,
+  metadataFilePath,
+  generatedImageUrl,
+}) => {
+  if (!resultId || !metadataFilePath) return;
+  if (shoppingListGenerationLocks.has(resultId)) {
+    return shoppingListGenerationLocks.get(resultId);
+  }
+
+  const task = (async () => {
+    try {
+      const raw = await fs.promises.readFile(metadataFilePath, "utf8");
+      const parsed = JSON.parse(raw);
+      const existingList = Array.isArray(parsed?.shoppingList)
+        ? normalizeShoppingList(parsed.shoppingList)
+        : [];
+      const currentStatus = String(parsed?.shoppingListStatus || "").toLowerCase();
+
+      if (existingList.length > 0 || currentStatus !== "pending") {
+        return;
+      }
+
+      try {
+        const { mimeType, data } = await getImageInputForGemini({
+          imageUrl: parsed?.generatedImageUrl || generatedImageUrl,
+        });
+        const generatedList = await analyzeRoomWithGemini({
+          mimeType,
+          data,
+          selectedTheme: parsed?.theme || "MODERN GAMING (RGB)",
+        });
+        parsed.shoppingList = generatedList;
+        parsed.shoppingListStatus = generatedList.length > 0 ? "ready" : "failed";
+      } catch (regenErr) {
+        console.error("[RESULT_SHOPPING_REGEN_ERROR]", regenErr.message);
+        parsed.shoppingList = existingList;
+        parsed.shoppingListStatus = "failed";
+      }
+
+      parsed.shoppingListUpdatedAt = new Date().toISOString();
+      await fs.promises.writeFile(
+        metadataFilePath,
+        JSON.stringify(parsed, null, 2),
+      );
+    } catch (err) {
+      console.error("[RESULT_SHOPPING_REGEN_READ_ERROR]", err.message);
+    }
+  })().finally(() => {
+    shoppingListGenerationLocks.delete(resultId);
+  });
+
+  shoppingListGenerationLocks.set(resultId, task);
+  return task;
 };
 
 const applyWatermarkForFreeUser = async (imageBuffer) => {
@@ -825,6 +889,7 @@ app.post(
         originalImageUrl,
         generatedImageUrl: imageUrl,
         shoppingList: fullShoppingList,
+        shoppingListStatus: fullShoppingList.length > 0 ? "ready" : "pending",
         timestamp: new Date().toISOString(),
       };
       const metadataFilePath = path.join(
@@ -852,6 +917,7 @@ app.post(
         imageUrl,
         originalImageUrl,
         shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
+        shoppingListStatus: fullShoppingList.length > 0 ? "ready" : "pending",
         shoppingListUnlocked: hasUnlockedAccess,
         tokensRemaining,
         isPremium: Boolean(existingLead?.premium),
@@ -937,6 +1003,7 @@ app.get("/api/result/:id", async (req, res) => {
       resultId: fileName,
       imageUrl: generatedImageUrl,
       originalImageUrl: null,
+      shoppingListStatus: "pending",
     });
   }
 
@@ -952,6 +1019,26 @@ app.get("/api/result/:id", async (req, res) => {
       ? normalizeShoppingList(parsed.shoppingList)
       : [];
     const shoppingListUnlocked = Boolean(isUserAdmin || isUserPremium);
+    let shoppingListStatus = String(
+      parsed.shoppingListStatus || (fullShoppingList.length > 0 ? "ready" : "pending"),
+    ).toLowerCase();
+
+    if (
+      shoppingListUnlocked &&
+      fullShoppingList.length === 0 &&
+      shoppingListStatus === "pending"
+    ) {
+      ensureShoppingListForResult({
+        resultId: baseName,
+        metadataFilePath,
+        generatedImageUrl: parsed.generatedImageUrl || generatedImageUrl,
+      }).catch((regenErr) =>
+        console.error("[RESULT_SHOPPING_REGEN_TRIGGER_ERROR]", regenErr.message),
+      );
+      if (shoppingListGenerationLocks.has(baseName)) {
+        shoppingListStatus = "processing";
+      }
+    }
 
     return res.json({
       resultId: fileName,
@@ -962,6 +1049,7 @@ app.get("/api/result/:id", async (req, res) => {
       timestamp: parsed.timestamp || "",
       isPremium: isUserPremium,
       shoppingListUnlocked,
+      shoppingListStatus,
       shoppingList: shoppingListUnlocked
         ? fullShoppingList
         : buildLockedShoppingList(),
@@ -973,6 +1061,7 @@ app.get("/api/result/:id", async (req, res) => {
       originalImageUrl: null,
       isPremium: false,
       shoppingListUnlocked: false,
+      shoppingListStatus: "failed",
       shoppingList: buildLockedShoppingList(),
     });
   }
