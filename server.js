@@ -1176,19 +1176,18 @@ app.post("/api/gumroad-webhook", express.urlencoded({ extended: true }), express
   }
   fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
 
-  const price =
-    Number(payload?.price) ||
-    Number(payload?.purchase?.price) ||
-    Number(payload?.sale?.price) ||
-    Number(payload?.data?.price) ||
-    0;
+  const rawPrice = Number(payload?.price) || Number(payload?.purchase?.price) || Number(payload?.sale?.price) || Number(payload?.data?.price) || 0;
+  let calculatedPrice = rawPrice / 100;
+  if (calculatedPrice <= 0) { calculatedPrice = 0.01; }
+
   await trackPosthogEvent("Purchase", {
     email,
-    value: price,
+    value: calculatedPrice,
     currency: "USD",
     product_name: productName,
     permalink,
     tokens_added: tokensToAdd,
+    test_mode: payload?.test === 'true'
   });
 
   return res.status(200).json({
