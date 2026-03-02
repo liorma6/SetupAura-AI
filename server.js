@@ -1080,7 +1080,7 @@ const verifyOtpHandler = (req, res) => {
     if (entry.attempts >= 5) {
       otpStore.delete(normalizedEmail);
       return res.status(400).json({
-        error: "TOO_MANY_ATTEM পিক_ATTEMPTS",
+        error: "TOO_MANY_ATTEMPTS",
         message: "Too many incorrect attempts. Please request a new code.",
       });
     }
@@ -1109,7 +1109,10 @@ app.post("/api/verify-otp", verifyOtpHandler);
 app.post("/api/auth/request-otp", requestOtpHandler);
 app.post("/api/auth/verify-otp", verifyOtpHandler);
 
-app.post("/api/gumroad-webhook", async (req, res) => {
+app.post("/api/gumroad-webhook", express.urlencoded({ extended: true }), express.json(), async (req, res) => {
+  console.log(">>> GUMROAD WEBHOOK HIT!", new Date().toISOString());
+  console.log("GUMROAD HEADERS:", req.headers["content-type"]);
+  console.log("GUMROAD BODY KEYS:", Object.keys(req.body || {}));
   console.log(">>> [WEBHOOK BODY]:", JSON.stringify(req.body));
   console.log(
     ">>> INCOMING GUMROAD REQUEST:",
