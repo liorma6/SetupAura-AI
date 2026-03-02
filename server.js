@@ -646,6 +646,15 @@ app.post(
       } catch {}
     }
 
+    const size =
+      inputWidth > 0 && inputHeight > 0
+        ? inputHeight > inputWidth
+          ? "1024x1792"
+          : inputWidth > inputHeight
+            ? "1792x1024"
+            : "1024x1024"
+        : "1792x1024";
+
     const base64Data = imageBuffer.toString("base64");
     const imageFile = await toFile(imageBuffer, inputFilename, {
       type: inputMimeType,
@@ -707,8 +716,11 @@ app.post(
         model: "gpt-image-1.5",
         image: imageFile,
         prompt: enhancedPrompt,
-        width: inputWidth || undefined,
-        height: inputHeight || undefined,
+        size,
+        extra_body: {
+          width: inputWidth,
+          height: inputHeight,
+        },
         quality: "high",
         input_fidelity: "high",
         output_format: "jpeg",
@@ -1067,74 +1079,32 @@ app.post("/api/auth/request-otp", requestOtpHandler);
 app.post("/api/auth/verify-otp", verifyOtpHandler);
 
 app.post("/api/gumroad-webhook", async (req, res) => {
+  console.log(
+    ">> GUMROAD PING AT:",
+    new Date().toISOString(),
+    "BODY:",
+    req.body,
+  );
   console.log(">> GUMROAD PING RECEIVED", JSON.stringify(req.body));
+  console.log(">> FULL GUMROAD PAYLOAD:", JSON.stringify(req.body, null, 2));
   const payload = req.body || {};
-  const email = String(
-    payload.email ||
-      payload?.purchase?.email ||
-      payload?.sale?.email ||
-      payload?.data?.email ||
-      "",
-  )
+  const email = String(payload?.email || "")
     .trim()
     .toLowerCase();
-  const productName = String(
-    payload.product_name ||
-      payload?.purchase?.product_name ||
-      payload?.sale?.product_name ||
-      payload?.variant ||
-      payload?.purchase?.variant ||
-      payload?.data?.product_name ||
-      "",
-  )
-    .trim()
-    .toLowerCase();
-  const normalizedProductName = productName.toLowerCase();
+  const productName = String(payload?.product_name || "").trim();
+  const permalink = String(payload?.permalink || "").trim();
+  const tierProbe = `${productName} ${permalink}`.toLowerCase();
 
   if (!email) {
     return res.status(200).json({ success: true, credited: false });
   }
 
-  if (normalizedProductName.includes("elite")) {
-    const existingLead = getUserRecord(email);
-    const currentTokens = Math.max(
-      0,
-      Math.floor(Number(existingLead?.tokensRemaining) || 0),
-    );
-    const nextTokens = currentTokens + 100;
-    const price =
-      Number(payload?.price) ||
-      Number(payload?.purchase?.price) ||
-      Number(payload?.sale?.price) ||
-      Number(payload?.data?.price) ||
-      0;
-
-    upsertLeadRecord(email, {
-      premium: true,
-      tokensRemaining: nextTokens,
-    });
-
-    await trackPosthogEvent("Purchase", {
-      email,
-      value: price,
-      currency: "USD",
-      product_name: productName,
-      tokens_added: 100,
-    });
-
-    return res.status(200).json({
-      success: true,
-      credited: true,
-      email,
-      tokensAdded: 100,
-      tokensRemaining: nextTokens,
-    });
-  }
-
   let tokensToAdd = 0;
-  if (normalizedProductName.includes("starter")) {
+  if (tierProbe.includes("elite")) {
+    tokensToAdd = 100;
+  } else if (tierProbe.includes("starter")) {
     tokensToAdd = 10;
-  } else if (normalizedProductName.includes("pro")) {
+  } else if (tierProbe.includes("pro")) {
     tokensToAdd = 40;
   }
 
@@ -1152,6 +1122,21 @@ app.post("/api/gumroad-webhook", async (req, res) => {
   upsertLeadRecord(email, {
     premium: true,
     tokensRemaining: nextTokens,
+  });
+
+  const price =
+    Number(payload?.price) ||
+    Number(payload?.purchase?.price) ||
+    Number(payload?.sale?.price) ||
+    Number(payload?.data?.price) ||
+    0;
+  await trackPosthogEvent("Purchase", {
+    email,
+    value: price,
+    currency: "USD",
+    product_name: productName,
+    permalink,
+    tokens_added: tokensToAdd,
   });
 
   return res.status(200).json({
