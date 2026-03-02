@@ -1109,7 +1109,7 @@ const verifyOtpHandler = (req, res) => {
     });
   }
   otpStore.delete(normalizedEmail);
-  const user = getUserRecord(normalizedEmail);
+  const user = upsertLeadRecord(normalizedEmail);
   return res.json({
     success: true,
     verified: true,
