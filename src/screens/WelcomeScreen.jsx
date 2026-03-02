@@ -2,6 +2,10 @@ import { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.protocol}//${window.location.hostname}:3000`;
+
 const BeforeAfterSlider = ({ beforeSrc, afterSrc }) => {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -86,20 +90,38 @@ const BeforeAfterSlider = ({ beforeSrc, afterSrc }) => {
 };
 
 export const WelcomeScreen = ({ onStart }) => {
-  const { setVerifiedEmail } = useApp();
+  const {
+    verifiedEmail,
+    tokensRemaining,
+    setVerifiedEmail,
+    setTokensRemaining,
+    setIsPremium,
+  } = useApp();
 
-  const handleAdminLogin = () => {
-    const input = window.prompt("Enter admin email");
+  const handleSignIn = async () => {
+    const input = window.prompt("Enter your email");
     if (!input) return;
     const email = input.trim().toLowerCase();
-    if (email === "liorma6@gmail.com") {
-      setVerifiedEmail(email);
+    if (!email) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/user/${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Sign in failed");
+      }
+
+      setVerifiedEmail(data?.email || email);
+      if (typeof data?.tokensRemaining === "number") {
+        setTokensRemaining(data.tokensRemaining);
+      }
+      setIsPremium(Boolean(data?.isPremium));
+
       try {
-        localStorage.setItem("setupaura_email", email);
+        localStorage.setItem("setupaura_email", data?.email || email);
       } catch {}
-      window.alert("Admin mode enabled");
-    } else {
-      window.alert("Access denied");
+    } catch {
+      window.alert("Could not sign in. Please try again.");
     }
   };
 
@@ -118,12 +140,19 @@ export const WelcomeScreen = ({ onStart }) => {
         <div className="absolute inset-0 bg-black/60" />
 
         <div className="relative z-10 flex flex-col items-center w-full max-w-md">
-          <button
-            onClick={handleAdminLogin}
-            className="absolute -top-8 right-0 text-[11px] tracking-wide text-gray-400 hover:text-white transition-colors"
-          >
-            Admin Login
-          </button>
+          <div className="absolute -top-8 right-0 flex items-center gap-2">
+            {verifiedEmail && (
+              <div className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] text-cyan-200 font-semibold tracking-wide">
+                Tokens: {tokensRemaining}
+              </div>
+            )}
+            <button
+              onClick={handleSignIn}
+              className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] tracking-wide text-gray-200 hover:text-white hover:bg-white/20 transition-colors"
+            >
+              Sign In
+            </button>
+          </div>
           <div className="mb-10">
             <h1 className="text-5xl sm:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-4 drop-shadow-[0_0_20px_rgba(191,0,255,0.6)]">
               SetupAura
@@ -169,7 +198,7 @@ export const WelcomeScreen = ({ onStart }) => {
             />
             <BeforeAfterSlider
               beforeSrc="/beforeEric.jpg"
-              afterSrc="/afterEric_final.png"
+              afterSrc="/afterEric.png"
             />
           </div>
         </div>

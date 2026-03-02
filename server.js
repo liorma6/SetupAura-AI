@@ -77,7 +77,7 @@ const uploadStorage = multer.diskStorage({
 const upload = multer({ storage: uploadStorage });
 const leadsPath = path.join(__dirname, "leads.json");
 const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
-const ADMIN_EMAIL = "liorma6@gmail.com";
+const ADMIN_EMAIL = "admin_disabled@setupaura.com";
 const TEST_USER_EMAIL = "liorma6@gmail.com";
 
 const readLeads = () => {
@@ -1010,6 +1010,92 @@ app.post("/api/verify-otp", (req, res) => {
   }
   otpStore.delete(normalizedEmail);
   res.json({ success: true, verified: true });
+});
+
+app.post("/api/gumroad-webhook", (req, res) => {
+  const payload = req.body || {};
+  const email = String(
+    payload.email ||
+      payload?.purchase?.email ||
+      payload?.sale?.email ||
+      payload?.data?.email ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  const productName = String(
+    payload.product_name ||
+      payload?.purchase?.product_name ||
+      payload?.sale?.product_name ||
+      payload?.variant ||
+      payload?.purchase?.variant ||
+      payload?.data?.product_name ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!email) {
+    return res.status(200).json({ success: true, credited: false });
+  }
+
+  let tokensToAdd = 0;
+  if (productName.includes("starter")) {
+    tokensToAdd = 10;
+  } else if (productName.includes("pro")) {
+    tokensToAdd = 40;
+  } else if (productName.includes("elite")) {
+    tokensToAdd = 100;
+  }
+
+  if (tokensToAdd <= 0) {
+    return res.status(200).json({ success: true, credited: false });
+  }
+
+  const existingLead = getUserRecord(email);
+  const currentTokens = Math.max(
+    0,
+    Math.floor(Number(existingLead?.tokensRemaining) || 0),
+  );
+  const nextTokens = currentTokens + tokensToAdd;
+
+  upsertLeadRecord(email, {
+    premium: true,
+    tokensRemaining: nextTokens,
+  });
+
+  return res.status(200).json({
+    success: true,
+    credited: true,
+    email,
+    tokensAdded: tokensToAdd,
+    tokensRemaining: nextTokens,
+  });
+});
+
+app.get("/api/user/:email", (req, res) => {
+  const email = String(req.params.email || "").trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "EMAIL_REQUIRED" });
+  }
+
+  const user = getUserRecord(email);
+  if (!user) {
+    return res.status(200).json({
+      email,
+      tokensRemaining: 0,
+      isPremium: false,
+    });
+  }
+
+  return res.status(200).json({
+    email: String(user.email || email).trim().toLowerCase(),
+    tokensRemaining: Math.max(
+      0,
+      Math.floor(Number(user.tokensRemaining) || 0),
+    ),
+    isPremium: Boolean(user.premium),
+  });
 });
 
 app.post("/api/admin-upgrade", (req, res) => {

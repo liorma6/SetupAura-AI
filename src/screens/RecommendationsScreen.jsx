@@ -27,8 +27,8 @@ export const RecommendationsScreen = () => {
         verifiedEmail,
         setVerifiedEmail,
         setGeneratedImage,
+        tokensRemaining,
         setTokensRemaining,
-        decrementTokens,
         setIsPremium,
         setScreen,
     } = useApp();
@@ -162,8 +162,8 @@ export const RecommendationsScreen = () => {
             setGeneratedImage(data.imageUrl);
             if (typeof data.tokensRemaining === 'number') {
                 setTokensRemaining(data.tokensRemaining);
-            } else if (normalizedEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-                decrementTokens();
+            } else {
+                setTokensRemaining(Math.max(0, Number(tokensRemaining || 0) - 1));
             }
             setIsPremium(Boolean(data.isPremium));
             if (normalizedEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
@@ -185,7 +185,7 @@ export const RecommendationsScreen = () => {
         } finally {
             isGeneratingRef.current = false;
         }
-    }, [uploadedImage, selectedTheme, setGeneratedImage, setTokensRemaining, decrementTokens, setIsPremium, setScreen, toBase64]);
+    }, [uploadedImage, selectedTheme, setGeneratedImage, tokensRemaining, setTokensRemaining, setIsPremium, setScreen, toBase64]);
 
     useEffect(() => {
         if (flow === 'loading' && verifiedEmail) {
