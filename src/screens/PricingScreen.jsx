@@ -1,6 +1,5 @@
 import { Check, Crown, Star, Zap } from 'lucide-react';
 import { usePostHog } from '@posthog/react';
-import { useApp } from '../context/AppContext';
 
 const tiers = [
     {
@@ -46,35 +45,12 @@ const tierIcon = {
 
 export const PricingScreen = () => {
     const posthog = usePostHog();
-    const { verifiedEmail, setTokensRemaining, setIsPremium, setScreen } = useApp();
-    const isAdmin = (verifiedEmail || '').trim().toLowerCase() === 'liorma6@gmail.com';
-    const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`;
 
-    const handleCheckoutClick = async (tier, e) => {
+    const handleCheckoutClick = (tier) => {
         const value = Number(String(tier.price).replace(/[^0-9.]/g, '')) || 0;
         posthog.capture('InitiateCheckout', { tier: tier.name, value, currency: 'USD' });
         if (typeof window !== 'undefined' && window.fbq) {
             window.fbq('track', 'InitiateCheckout', { content_name: tier.name, value, currency: 'USD' });
-        }
-        if (isAdmin) {
-            e.preventDefault();
-            const res = await fetch(`${API_URL}/api/admin-upgrade`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: verifiedEmail,
-                    tokensToAdd: tier.tokens
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                return;
-            }
-            if (typeof data.tokensRemaining === 'number') {
-                setTokensRemaining(data.tokensRemaining);
-            }
-            setIsPremium(true);
-            setScreen('result');
         }
     };
 
@@ -130,7 +106,7 @@ export const PricingScreen = () => {
                                     href={tier.checkoutUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={(e) => handleCheckoutClick(tier, e)}
+                                    onClick={() => handleCheckoutClick(tier)}
                                     className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}
                                 >
                                     Upgrade Now

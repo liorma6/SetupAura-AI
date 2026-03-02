@@ -78,7 +78,6 @@ const upload = multer({ storage: uploadStorage });
 const leadsPath = path.join(__dirname, "leads.json");
 const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
 const ADMIN_EMAIL = "admin_disabled@setupaura.com";
-const TEST_USER_EMAIL = "liorma6@gmail.com";
 
 const readLeads = () => {
   try {
@@ -554,13 +553,18 @@ app.post(
 
   try {
     const normalizedEmail = email.trim().toLowerCase();
-    const isUserAdmin = normalizedEmail === ADMIN_EMAIL.toLowerCase();
     const existingLead = getUserRecord(email.trim());
-    const isTestMode = normalizedEmail === TEST_USER_EMAIL.toLowerCase();
-    const isPremiumUser = Boolean(existingLead?.premium || isTestMode);
-    const hasUnlockedAccess = isUserAdmin || isPremiumUser;
+    const hasUnlockedAccess = Boolean(existingLead?.premium);
 
-    if (!isUserAdmin && !isPremiumUser && existingLead) {
+    if (!existingLead) {
+      return res.status(403).json({
+        error: "OUT_OF_TOKENS",
+        message: "Out of tokens",
+        paywall: true,
+      });
+    }
+    const currentTokens = Math.max(0, Number(existingLead?.tokensRemaining ?? 0));
+    if (currentTokens <= 0) {
       return res.status(403).json({
         error: "OUT_OF_TOKENS",
         message: "Out of tokens",
@@ -717,23 +721,12 @@ app.post(
 
     const lockedShoppingList = buildLockedShoppingList();
 
-    let tokensRemaining = Number(existingLead?.tokensRemaining ?? 0);
-    if (!isUserAdmin && !isPremiumUser) {
-      saveLead(email.trim());
-      tokensRemaining = 0;
-    } else {
-      const currentTokens = Math.max(
-        0,
-        Number(existingLead?.tokensRemaining ?? 0),
-      );
-      const nextTokens = Math.max(0, currentTokens - 1);
-      upsertLeadRecord(email.trim(), {
-        premium: true,
-        testMode: isTestMode,
-        tokensRemaining: nextTokens,
-      });
-      tokensRemaining = nextTokens;
-    }
+    const tokensRemaining = Math.max(0, currentTokens - 1);
+    upsertLeadRecord(email.trim(), {
+      premium: Boolean(existingLead?.premium),
+      testMode: Boolean(existingLead?.testMode),
+      tokensRemaining,
+    });
 
     res.json({
       resultId: filename,
@@ -742,8 +735,8 @@ app.post(
       shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
       shoppingListUnlocked: hasUnlockedAccess,
       tokensRemaining,
-      isPremium: Boolean(isPremiumUser || isUserAdmin),
-      testMode: isTestMode,
+      isPremium: Boolean(existingLead?.premium),
+      testMode: Boolean(existingLead?.testMode),
     });
 
     if (process.env.EMAIL_USER && email) {
@@ -918,7 +911,7 @@ app.post("/api/submit-review", async (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/send-otp", async (req, res) => {
+const requestOtpHandler = async (req, res) => {
   const { email } = req.body;
   if (!email || email.trim() === "")
     return res.status(400).json({ error: "Email required" });
@@ -973,9 +966,9 @@ app.post("/api/send-otp", async (req, res) => {
       message: "Failed to send email. Please try again.",
     });
   }
-});
+};
 
-app.post("/api/verify-otp", (req, res) => {
+const verifyOtpHandler = (req, res) => {
   const { email, code } = req.body;
   if (!email || !code)
     return res.status(400).json({ error: "Email and code required" });
@@ -1009,8 +1002,23 @@ app.post("/api/verify-otp", (req, res) => {
     });
   }
   otpStore.delete(normalizedEmail);
-  res.json({ success: true, verified: true });
-});
+  const user = getUserRecord(normalizedEmail);
+  return res.json({
+    success: true,
+    verified: true,
+    email: normalizedEmail,
+    tokensRemaining: Math.max(
+      0,
+      Math.floor(Number(user?.tokensRemaining) || 0),
+    ),
+    isPremium: Boolean(user?.premium),
+  });
+};
+
+app.post("/api/send-otp", requestOtpHandler);
+app.post("/api/verify-otp", verifyOtpHandler);
+app.post("/api/auth/request-otp", requestOtpHandler);
+app.post("/api/auth/verify-otp", verifyOtpHandler);
 
 app.post("/api/gumroad-webhook", (req, res) => {
   const payload = req.body || {};

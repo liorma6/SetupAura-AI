@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const AppContext = createContext();
 const APP_STATE_KEY = 'setupaura_app_state';
-const TEST_USER_EMAIL = 'liorma6@gmail.com';
 
 const getInitialState = () => {
     const initialPath = window.location.pathname;
@@ -60,13 +59,7 @@ export const AppProvider = ({ children }) => {
     const setUploadedImage = (image) => setState(prev => ({ ...prev, uploadedImage: image }));
     const setSelectedTheme = (theme) => setState(prev => ({ ...prev, selectedTheme: theme }));
     const setGeneratedImage = (image) => setState(prev => ({ ...prev, generatedImage: image }));
-    const setVerifiedEmail = (email) => setState(prev => {
-        const normalized = (email || '').trim().toLowerCase();
-        if (normalized === TEST_USER_EMAIL) {
-            return { ...prev, verifiedEmail: email, isPremium: true };
-        }
-        return { ...prev, verifiedEmail: email };
-    });
+    const setVerifiedEmail = (email) => setState(prev => ({ ...prev, verifiedEmail: email }));
     const setTokensRemaining = (tokens) => setState(prev => ({
         ...prev,
         tokensRemaining: Math.max(0, Number.isFinite(tokens) ? Math.floor(tokens) : prev.tokensRemaining)

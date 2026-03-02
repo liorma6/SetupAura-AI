@@ -2,17 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, Mail, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const ADMIN_EMAIL = 'liorma6@gmail.com';
 const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`;
 const DEFAULT_THEME = 'MODERN GAMING (RGB)';
 
 const getStoredEmail = () => {
     try { return (localStorage.getItem('setupaura_email') || '').trim(); }
-    catch { return ''; }
-};
-
-const getStoredUserEmail = () => {
-    try { return (localStorage.getItem('userEmail') || '').trim(); }
     catch { return ''; }
 };
 
@@ -33,10 +27,8 @@ export const RecommendationsScreen = () => {
         setScreen,
     } = useApp();
 
-    const initialStoredUserEmail = getStoredUserEmail();
-    const initialIsAdmin = initialStoredUserEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    const [flow, setFlow] = useState(verifiedEmail || initialIsAdmin ? 'loading' : 'email');
-    const [emailInput, setEmailInput] = useState(verifiedEmail || getStoredEmail() || initialStoredUserEmail);
+    const [flow, setFlow] = useState(verifiedEmail ? 'loading' : 'email');
+    const [emailInput, setEmailInput] = useState(verifiedEmail || getStoredEmail());
     const [pendingEmail, setPendingEmail] = useState('');
     const [error, setError] = useState('');
 
@@ -104,6 +96,12 @@ export const RecommendationsScreen = () => {
             return;
         }
 
+        if (verifiedEmail && Number(tokensRemaining || 0) <= 0) {
+            setScreen('pricing');
+            setFlow('email');
+            return;
+        }
+
         if (!uploadedImage) {
             setError('No image found. Please go back and upload a photo of your setup.');
             setFlow('email');
@@ -166,9 +164,7 @@ export const RecommendationsScreen = () => {
                 setTokensRemaining(Math.max(0, Number(tokensRemaining || 0) - 1));
             }
             setIsPremium(Boolean(data.isPremium));
-            if (normalizedEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-                markTrialUsed();
-            }
+            markTrialUsed();
             setScreen('result');
         } catch (error) {
             console.error('DEBUG: Full Error Object:', error);
@@ -193,12 +189,6 @@ export const RecommendationsScreen = () => {
         }
     }, [flow, verifiedEmail, generateForEmail]);
 
-    useEffect(() => {
-        if (!verifiedEmail && initialIsAdmin) {
-            setVerifiedEmail(ADMIN_EMAIL);
-        }
-    }, [initialIsAdmin, setVerifiedEmail, verifiedEmail]);
-
     const handleEmailSubmit = async (e) => {
         e.preventDefault();
         const email = emailInput.trim();
@@ -209,7 +199,7 @@ export const RecommendationsScreen = () => {
 
         try {
             console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
-            const res = await fetch(`${API_URL}/api/send-otp`, {
+            const res = await fetch(`${API_URL}/api/auth/request-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
@@ -231,7 +221,7 @@ export const RecommendationsScreen = () => {
             } else {
                 console.error('DEBUG: Error setting up request:', error.message);
             }
-            setOtpError(`Load failed. URL: ${API_URL}/api/send-otp`);
+            setOtpError(`Load failed. URL: ${API_URL}/api/auth/request-otp`);
         } finally {
             setSendingOtp(false);
         }
@@ -243,7 +233,7 @@ export const RecommendationsScreen = () => {
         setOtpError('');
         try {
             console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
-            const res = await fetch(`${API_URL}/api/send-otp`, {
+            const res = await fetch(`${API_URL}/api/auth/request-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: pendingEmail }),
@@ -262,7 +252,7 @@ export const RecommendationsScreen = () => {
             } else {
                 console.error('DEBUG: Error setting up request:', error.message);
             }
-            setOtpError(`Load failed. URL: ${API_URL}/api/send-otp`);
+            setOtpError(`Load failed. URL: ${API_URL}/api/auth/request-otp`);
         } finally {
             setSendingOtp(false);
         }
@@ -306,7 +296,7 @@ export const RecommendationsScreen = () => {
 
         try {
             console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
-            const res = await fetch(`${API_URL}/api/verify-otp`, {
+            const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: pendingEmail, code }),
@@ -319,10 +309,11 @@ export const RecommendationsScreen = () => {
 
             const verified = pendingEmail.trim();
             try { localStorage.setItem('setupaura_email', verified); } catch { }
-            if (verified.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                try { localStorage.setItem('userEmail', ADMIN_EMAIL); } catch { }
-            }
             setVerifiedEmail(verified);
+            if (typeof data.tokensRemaining === 'number') {
+                setTokensRemaining(data.tokensRemaining);
+            }
+            setIsPremium(Boolean(data?.isPremium));
             await generateForEmail(verified);
         } catch (error) {
             console.error('DEBUG: Full Error Object:', error);
@@ -334,7 +325,7 @@ export const RecommendationsScreen = () => {
             } else {
                 console.error('DEBUG: Error setting up request:', error.message);
             }
-            setOtpError(`Load failed. URL: ${API_URL}/api/verify-otp`);
+            setOtpError(`Load failed. URL: ${API_URL}/api/auth/verify-otp`);
         } finally {
             setOtpLoading(false);
         }

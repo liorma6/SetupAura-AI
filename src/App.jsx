@@ -64,7 +64,7 @@ const ScreenWrapper = ({ children, screenKey }) => (
 );
 
 const InnerApp = () => {
-  const { screen, setScreen } = useApp();
+  const { screen, setScreen, verifiedEmail, tokensRemaining } = useApp();
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -82,12 +82,20 @@ const InnerApp = () => {
     setScreen('welcome');
   };
 
+  const handleStart = () => {
+    if (verifiedEmail && Number(tokensRemaining || 0) <= 0) {
+      setScreen('pricing');
+      return;
+    }
+    setScreen('scan');
+  };
+
   const renderScreen = () => {
     switch (screen) {
       case 'welcome':
         return (
           <ScreenWrapper screenKey="welcome">
-            <WelcomeScreen onStart={() => setScreen('scan')} />
+            <WelcomeScreen onStart={handleStart} />
           </ScreenWrapper>
         );
       case 'scan':
@@ -121,7 +129,7 @@ const InnerApp = () => {
           </ScreenWrapper>
         );
       default:
-        return <WelcomeScreen onStart={() => setScreen('scan')} />;
+        return <WelcomeScreen onStart={handleStart} />;
     }
   };
 

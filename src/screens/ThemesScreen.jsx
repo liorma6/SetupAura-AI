@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, Sparkles } from "lucide-react";
 import { ScreenContainer } from "../components/ui/ScreenContainer";
@@ -57,47 +57,23 @@ const themes = [
 ];
 
 export const ThemesScreen = () => {
-    const { setSelectedTheme, setScreen, verifiedEmail, setVerifiedEmail } = useApp();
-    const [persistedAdmin, setPersistedAdmin] = useState(false);
-    const [themeCards, setThemeCards] = useState(themes);
-
-    useEffect(() => {
-        const storedEmail = (localStorage.getItem("userEmail") || "").trim().toLowerCase();
-        if (storedEmail === "liorma6@gmail.com") {
-            setPersistedAdmin(true);
-            if ((verifiedEmail || "").trim().toLowerCase() !== "liorma6@gmail.com") {
-                setVerifiedEmail("liorma6@gmail.com");
-            }
-        }
-    }, [setVerifiedEmail, verifiedEmail]);
-
-    const isAdmin =
-        (verifiedEmail || "").trim().toLowerCase() === "liorma6@gmail.com" || persistedAdmin;
-
-    useEffect(() => {
-        if (isAdmin) {
-            setThemeCards((prev) =>
-                prev.map((theme) => ({
-                    ...theme,
-                    isLocked: false,
-                }))
-            );
-        } else {
-            setThemeCards(themes);
-        }
-    }, [isAdmin]);
+    const { setSelectedTheme, setScreen, isPremium, verifiedEmail, tokensRemaining } = useApp();
 
     const normalizedThemes = useMemo(
-        () => themeCards.map((theme) => ({
+        () => themes.map((theme) => ({
             ...theme,
-            status: theme.status === "FREE" ? "FREE" : isAdmin ? "ADMIN MODE" : "PREMIUM",
+            isLocked: theme.status === "PREMIUM" ? !isPremium : false,
         })),
-        [isAdmin, themeCards]
+        [isPremium]
     );
 
     const [localSelection, setLocalSelection] = useState("MODERN GAMING (RGB)");
 
     const handleNext = () => {
+        if (verifiedEmail && Number(tokensRemaining || 0) <= 0) {
+            setScreen('pricing');
+            return;
+        }
         if (window.fbq) {
             window.fbq("track", "Lead");
         }
@@ -140,9 +116,7 @@ export const ThemesScreen = () => {
                                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide backdrop-blur-sm ${
                                             theme.status === "FREE"
                                                 ? "bg-emerald-500/20 border-emerald-300/40 text-emerald-200"
-                                                : theme.status === "ADMIN MODE"
-                                                    ? "bg-blue-500/20 border-blue-300/40 text-blue-200"
-                                                    : "bg-black/60 border-white/25 text-white"
+                                                : "bg-black/60 border-white/25 text-white"
                                         }`}
                                     >
                                         {theme.isLocked && <Lock className="w-3 h-3" />}

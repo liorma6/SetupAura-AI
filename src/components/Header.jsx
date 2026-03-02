@@ -1,6 +1,9 @@
 import { Menu } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 export const Header = ({ onHomeClick, onMenuToggle }) => {
+  const { verifiedEmail, tokensRemaining } = useApp();
+
   return (
     <header className="fixed top-0 w-full z-50 h-16 bg-black/80 backdrop-blur-md border-b border-cyan-500/20 flex justify-center items-center">
       <div className="w-full max-w-[480px] h-full flex items-center justify-between px-4">
@@ -17,7 +20,13 @@ export const Header = ({ onHomeClick, onMenuToggle }) => {
             SetupAura AI
           </span>
         </a>
-        <div className="w-9" />
+        {verifiedEmail ? (
+          <div className="px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-300/30 text-[11px] font-bold text-cyan-200">
+            Tokens: {tokensRemaining}
+          </div>
+        ) : (
+          <div className="w-9" />
+        )}
       </div>
     </header>
   );

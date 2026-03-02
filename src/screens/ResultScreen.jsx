@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Lock, Sparkles, ShoppingBag } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const ADMIN_EMAIL = 'liorma6@gmail.com';
 const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`;
 
 const ReviewSection = ({ rating, setRating, reviewText, setReviewText, onSubmit }) => (
@@ -90,18 +89,18 @@ export const ResultScreen = () => {
     const [imageLoading, setImageLoading] = useState(false);
     const [displayImageUrl, setDisplayImageUrl] = useState('');
     const [linkUnlocked, setLinkUnlocked] = useState(false);
+    const [orientation, setOrientation] = useState('landscape');
 
     const preloadRequestRef = useRef(0);
     const initializedRef = useRef(false);
 
-    const isAdmin = (verifiedEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    const hasUnlockedAccess = Boolean(isAdmin || isPremium || linkUnlocked);
+    const hasUnlockedAccess = Boolean(isPremium || linkUnlocked);
 
     useEffect(() => {
-        if (isAdmin || isPremium) {
+        if (isPremium) {
             setLinkUnlocked(true);
         }
-    }, [isAdmin, isPremium]);
+    }, [isPremium]);
 
     useEffect(() => {
         if (initializedRef.current) return;
@@ -159,7 +158,7 @@ export const ResultScreen = () => {
                         setVerifiedEmail(data.userEmail);
                     }
 
-                    if (data?.isPremium || (data?.userEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    if (data?.isPremium) {
                         setIsPremium(true);
                         setLinkUnlocked(true);
                     }
@@ -170,7 +169,7 @@ export const ResultScreen = () => {
 
                     if (Array.isArray(data?.shoppingList) && data.shoppingList.length) {
                         setShoppingItems(data.shoppingList);
-                        setShowUnlockedShoppingList(Boolean(data?.shoppingListUnlocked || data?.isPremium || (data?.userEmail || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()));
+                        setShowUnlockedShoppingList(Boolean(data?.shoppingListUnlocked || data?.isPremium));
                     }
                 }
 
@@ -196,6 +195,20 @@ export const ResultScreen = () => {
             preloadRequestRef.current += 1;
         };
     }, []);
+
+    useEffect(() => {
+        if (!uploadedImage) return;
+        let cancelled = false;
+        const img = new Image();
+        img.onload = () => {
+            if (cancelled) return;
+            setOrientation(img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape');
+        };
+        img.src = uploadedImage;
+        return () => {
+            cancelled = true;
+        };
+    }, [uploadedImage]);
 
     const handleSubmitReview = async () => {
         if (rating === 0) {
@@ -259,6 +272,8 @@ export const ResultScreen = () => {
         }
     };
 
+    const aspectClass = orientation === 'portrait' ? 'aspect-[2/3]' : 'aspect-[16/9]';
+
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center p-6 overflow-y-auto pb-20">
             <header className="w-full max-w-md flex items-center justify-between mb-8 pt-4">
@@ -266,41 +281,47 @@ export const ResultScreen = () => {
             </header>
 
             <div className="w-full max-w-md mb-8">
-                {uploadedImage && (
-                    <div className="mb-4">
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
                         <p className="text-xs font-bold text-gray-500 mb-1.5 tracking-wider">BEFORE</p>
-                        <div className="rounded-xl overflow-hidden border border-white/10 bg-black/50 min-h-[260px] max-h-[70vh] flex items-center justify-center">
-                            <img src={uploadedImage} alt="Before" className="w-full h-full max-h-[70vh] object-contain" />
+                        <div className={`relative rounded-2xl overflow-hidden border border-white/10 bg-black/50 w-full ${aspectClass} flex items-center justify-center`}>
+                            {uploadedImage ? (
+                                <img src={uploadedImage} alt="Before" className="w-full h-full object-contain" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No uploaded image</div>
+                            )}
                         </div>
                     </div>
-                )}
-                <div className="flex items-center gap-2 mb-1.5">
-                    <Sparkles className="w-3 h-3 text-purple-400" />
-                    <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
-                </div>
-                <div className="relative rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-black/60 min-h-[260px] max-h-[70vh] flex items-center justify-center">
-                    {displayImageUrl && !imageLoading && !resultLoading && !resultError && (
-                        <img
-                            src={displayImageUrl}
-                            className="w-full h-full max-h-[70vh] object-contain"
-                            alt="AI Result"
-                        />
-                    )}
-
-                    {!resultError && (resultLoading || imageLoading) && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40">
-                            <div className="w-8 h-8 rounded-full border-2 border-purple-300/30 border-t-purple-300 animate-spin" />
-                            <div className="w-32 h-2 rounded-full bg-white/10 animate-pulse" />
+                    <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <Sparkles className="w-3 h-3 text-purple-400" />
+                            <p className="text-xs font-bold text-purple-400 tracking-widest uppercase">AI Upgrade</p>
                         </div>
-                    )}
+                        <div className={`relative rounded-2xl overflow-hidden border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-black/60 w-full ${aspectClass} flex items-center justify-center`}>
+                            {displayImageUrl && !imageLoading && !resultLoading && !resultError && (
+                                <img
+                                    src={displayImageUrl}
+                                    className="w-full h-full object-contain"
+                                    alt="AI Result"
+                                />
+                            )}
 
-                    {!resultLoading && !imageLoading && resultError && (
-                        <div className="absolute inset-0 flex items-center justify-center text-red-400 text-sm px-4 text-center">{resultError}</div>
-                    )}
+                            {!resultError && (resultLoading || imageLoading) && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40">
+                                    <div className="w-8 h-8 rounded-full border-2 border-purple-300/30 border-t-purple-300 animate-spin" />
+                                    <div className="w-32 h-2 rounded-full bg-white/10 animate-pulse" />
+                                </div>
+                            )}
 
-                    {!resultLoading && !imageLoading && !displayImageUrl && !resultError && (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No generated image yet</div>
-                    )}
+                            {!resultLoading && !imageLoading && resultError && (
+                                <div className="absolute inset-0 flex items-center justify-center text-red-400 text-sm px-4 text-center">{resultError}</div>
+                            )}
+
+                            {!resultLoading && !imageLoading && !displayImageUrl && !resultError && (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No generated image yet</div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -326,14 +347,6 @@ export const ResultScreen = () => {
                             >
                                 View Shopping List
                             </button>
-                            {isAdmin && (
-                                <button
-                                    onClick={() => setScreen('pricing')}
-                                    className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:scale-[1.01] active:scale-95 transition-transform"
-                                >
-                                    Admin: Test Pricing Page
-                                </button>
-                            )}
                         </div>
                     ) : (
                         <div className="space-y-4">
