@@ -92,12 +92,8 @@ const BeforeAfterSlider = ({ beforeSrc, afterSrc }) => {
 const emptyOtp = ["", "", "", "", "", ""];
 
 export const WelcomeScreen = ({ onStart }) => {
-  const {
-    verifiedEmail,
-    setVerifiedEmail,
-    setTokensRemaining,
-    setIsPremium,
-  } = useApp();
+  const { verifiedEmail, setVerifiedEmail, setTokensRemaining, setIsPremium } =
+    useApp();
 
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [step, setStep] = useState("email");
@@ -163,8 +159,8 @@ export const WelcomeScreen = ({ onStart }) => {
 
   useEffect(() => {
     const handleOpenSignIn = () => openSignIn();
-    window.addEventListener('open-sign-in', handleOpenSignIn);
-    return () => window.removeEventListener('open-sign-in', handleOpenSignIn);
+    window.addEventListener("open-sign-in", handleOpenSignIn);
+    return () => window.removeEventListener("open-sign-in", handleOpenSignIn);
   }, [verifiedEmail]);
 
   const requestOtp = async (email) => {
@@ -223,7 +219,10 @@ export const WelcomeScreen = ({ onStart }) => {
 
   const handleOtpPaste = (e) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     const next = [...emptyOtp];
     for (let i = 0; i < 6; i++) {
       next[i] = pasted[i] || "";
@@ -253,7 +252,9 @@ export const WelcomeScreen = ({ onStart }) => {
         throw new Error(data?.message || data?.error || "Verification failed");
       }
 
-      const normalizedEmail = (data?.email || pendingEmail || "").trim().toLowerCase();
+      const normalizedEmail = (data?.email || pendingEmail || "")
+        .trim()
+        .toLowerCase();
       const tokens = Math.max(0, Number(data?.tokensRemaining) || 0);
       const premium = Boolean(data?.isPremium);
 
@@ -333,7 +334,7 @@ export const WelcomeScreen = ({ onStart }) => {
             />
             <BeforeAfterSlider
               beforeSrc="/beforeEric.jpg"
-              afterSrc="/afterEric.png"
+              afterSrc="/afterEric_final.png"
             />
           </div>
         </div>
@@ -343,7 +344,9 @@ export const WelcomeScreen = ({ onStart }) => {
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1020] p-5">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-white font-black tracking-wide text-lg">Sign In</h3>
+              <h3 className="text-white font-black tracking-wide text-lg">
+                Sign In
+              </h3>
               <button
                 onClick={closeSignIn}
                 className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
@@ -362,7 +365,9 @@ export const WelcomeScreen = ({ onStart }) => {
                   required
                   className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 outline-none"
                 />
-                {authError && <p className="text-red-400 text-sm">{authError}</p>}
+                {authError && (
+                  <p className="text-red-400 text-sm">{authError}</p>
+                )}
                 <button
                   type="submit"
                   disabled={sendingOtp}
@@ -375,7 +380,9 @@ export const WelcomeScreen = ({ onStart }) => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-purple-300">
                   <ShieldCheck className="w-4 h-4" />
-                  <p className="text-sm font-semibold break-all">{pendingEmail}</p>
+                  <p className="text-sm font-semibold break-all">
+                    {pendingEmail}
+                  </p>
                 </div>
 
                 <div className="flex gap-2.5" onPaste={handleOtpPaste}>
@@ -394,7 +401,9 @@ export const WelcomeScreen = ({ onStart }) => {
                   ))}
                 </div>
 
-                {authError && <p className="text-red-400 text-sm">{authError}</p>}
+                {authError && (
+                  <p className="text-red-400 text-sm">{authError}</p>
+                )}
 
                 <button
                   onClick={handleVerifyOtp}
@@ -411,7 +420,9 @@ export const WelcomeScreen = ({ onStart }) => {
                     className="inline-flex items-center gap-1 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend Code"}
+                    {otpCooldown > 0
+                      ? `Resend in ${otpCooldown}s`
+                      : "Resend Code"}
                   </button>
                   <button
                     onClick={() => {

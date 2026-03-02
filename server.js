@@ -655,6 +655,14 @@ app.post(
         inputHeight = Number(metadata?.height) || 0;
       } catch {}
     }
+    const size =
+      inputWidth > 0 && inputHeight > 0
+        ? inputHeight > inputWidth
+          ? "1024x1792"
+          : inputWidth > inputHeight
+            ? "1792x1024"
+            : "1024x1024"
+        : "1792x1024";
 
     const base64Data = imageBuffer.toString("base64");
     const imageFile = await toFile(imageBuffer, inputFilename, {
@@ -718,8 +726,7 @@ app.post(
         formData.append("model", "gpt-image-1.5");
         formData.append("image", imageFile, inputFilename);
         formData.append("prompt", enhancedPrompt);
-        formData.append("width", String(inputWidth || 1024));
-        formData.append("height", String(inputHeight || 1024));
+        formData.append("size", size);
         formData.append("quality", "high");
         formData.append("input_fidelity", "high");
         formData.append("output_format", "jpeg");
