@@ -769,8 +769,17 @@ app.post(
       ensureUploadDirs();
       const filepath = path.join(IMAGES_DIR, filename);
       const generatedBuffer = Buffer.from(generatedBase64, "base64");
-      const processedBuffer = await sharp(generatedBuffer).trim({ threshold: 10 }).resize(inputWidth || 1024, inputHeight || 1024, { fit: "cover", position: "centre" }).jpeg({ quality: 92 }).toBuffer();
-      const finalGeneratedBuffer = hasUnlockedAccess ? processedBuffer : await applyWatermarkForFreeUser(processedBuffer);
+      const processedBuffer = await sharp(generatedBuffer)
+        .trim({ threshold: 10 })
+        .resize(inputWidth || 1024, inputHeight || 1024, {
+          fit: "cover",
+          position: "centre",
+        })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      const finalGeneratedBuffer = hasUnlockedAccess
+        ? processedBuffer
+        : await applyWatermarkForFreeUser(processedBuffer);
       await fs.promises.writeFile(filepath, finalGeneratedBuffer);
       console.log(`[Saved] ${filepath}`);
       const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
@@ -1109,95 +1118,107 @@ app.post("/api/verify-otp", verifyOtpHandler);
 app.post("/api/auth/request-otp", requestOtpHandler);
 app.post("/api/auth/verify-otp", verifyOtpHandler);
 
-app.post("/api/gumroad-webhook", express.urlencoded({ extended: true }), express.json(), async (req, res) => {
-  console.log(">>> GUMROAD WEBHOOK HIT!", new Date().toISOString());
-  console.log("GUMROAD HEADERS:", req.headers["content-type"]);
-  console.log("GUMROAD BODY KEYS:", Object.keys(req.body || {}));
-  console.log(">>> [WEBHOOK BODY]:", JSON.stringify(req.body));
-  console.log(
-    ">>> INCOMING GUMROAD REQUEST:",
-    req.method,
-    req.originalUrl,
-    "BODY:",
-    JSON.stringify(req.body),
-  );
-  console.log(
-    ">> GUMROAD PING AT:",
-    new Date().toISOString(),
-    "BODY:",
-    req.body,
-  );
-  console.log(">> GUMROAD PING RECEIVED", JSON.stringify(req.body));
-  console.log(">> FULL GUMROAD PAYLOAD:", JSON.stringify(req.body, null, 2));
-  const payload = req.body || {};
-  const email = String(payload?.email || "")
-    .trim()
-    .toLowerCase();
-  const productName = String(payload?.product_name || "").trim();
-  const permalink = String(payload?.permalink || "").trim();
-  const tierProbe = `${productName} ${permalink}`.toLowerCase();
+app.post(
+  "/api/gumroad-webhook",
+  express.urlencoded({ extended: true }),
+  express.json(),
+  async (req, res) => {
+    console.log(">>> GUMROAD WEBHOOK HIT!", new Date().toISOString());
+    console.log("GUMROAD HEADERS:", req.headers["content-type"]);
+    console.log("GUMROAD BODY KEYS:", Object.keys(req.body || {}));
+    console.log(">>> [WEBHOOK BODY]:", JSON.stringify(req.body));
+    console.log(
+      ">>> INCOMING GUMROAD REQUEST:",
+      req.method,
+      req.originalUrl,
+      "BODY:",
+      JSON.stringify(req.body),
+    );
+    console.log(
+      ">> GUMROAD PING AT:",
+      new Date().toISOString(),
+      "BODY:",
+      req.body,
+    );
+    console.log(">> GUMROAD PING RECEIVED", JSON.stringify(req.body));
+    console.log(">> FULL GUMROAD PAYLOAD:", JSON.stringify(req.body, null, 2));
+    const payload = req.body || {};
+    const email = String(payload?.email || "")
+      .trim()
+      .toLowerCase();
+    const productName = String(payload?.product_name || "").trim();
+    const permalink = String(payload?.permalink || "").trim();
+    const tierProbe = `${productName} ${permalink}`.toLowerCase();
 
-  if (!email) {
-    return res.status(200).json({ success: true, credited: false });
-  }
+    if (!email) {
+      return res.status(200).json({ success: true, credited: false });
+    }
 
-  let tokensToAdd = 0;
-  if (tierProbe.includes("elite")) {
-    tokensToAdd = 100;
-  } else if (tierProbe.includes("starter")) {
-    tokensToAdd = 10;
-  } else if (tierProbe.includes("pro")) {
-    tokensToAdd = 40;
-  }
+    let tokensToAdd = 0;
+    if (tierProbe.includes("elite")) {
+      tokensToAdd = 100;
+    } else if (tierProbe.includes("starter")) {
+      tokensToAdd = 10;
+    } else if (tierProbe.includes("pro")) {
+      tokensToAdd = 40;
+    }
 
-  if (tokensToAdd <= 0) {
-    return res.status(200).json({ success: true, credited: false });
-  }
+    if (tokensToAdd <= 0) {
+      return res.status(200).json({ success: true, credited: false });
+    }
 
-  const leads = readLeads();
-  const leadIndex = getLeadIndexByEmail(leads, email);
-  const existingLead = leadIndex >= 0 ? leads[leadIndex] : null;
-  const currentTokens = Math.max(
-    0,
-    Math.floor(Number(existingLead?.tokensRemaining) || 0),
-  );
-  const nextTokens = currentTokens + tokensToAdd;
-  const updatedLead = {
-    email,
-    timestamp: existingLead?.timestamp || new Date().toISOString(),
-    premium: true,
-    tokensRemaining: nextTokens,
-    testMode: Boolean(existingLead?.testMode),
-  };
-  if (leadIndex >= 0) {
-    leads[leadIndex] = { ...leads[leadIndex], ...updatedLead };
-  } else {
-    leads.push(updatedLead);
-  }
-  fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
+    const leads = readLeads();
+    const leadIndex = getLeadIndexByEmail(leads, email);
+    const existingLead = leadIndex >= 0 ? leads[leadIndex] : null;
+    const currentTokens = Math.max(
+      0,
+      Math.floor(Number(existingLead?.tokensRemaining) || 0),
+    );
+    const nextTokens = currentTokens + tokensToAdd;
+    const updatedLead = {
+      email,
+      timestamp: existingLead?.timestamp || new Date().toISOString(),
+      premium: true,
+      tokensRemaining: nextTokens,
+      testMode: Boolean(existingLead?.testMode),
+    };
+    if (leadIndex >= 0) {
+      leads[leadIndex] = { ...leads[leadIndex], ...updatedLead };
+    } else {
+      leads.push(updatedLead);
+    }
+    fs.writeFileSync(leadsPath, JSON.stringify(leads, null, 2));
 
-  const rawPrice = Number(payload?.price) || Number(payload?.purchase?.price) || Number(payload?.sale?.price) || Number(payload?.data?.price) || 0;
-  let calculatedPrice = rawPrice / 100;
-  if (calculatedPrice <= 0) { calculatedPrice = 0.01; }
+    const rawPrice =
+      Number(payload?.price) ||
+      Number(payload?.purchase?.price) ||
+      Number(payload?.sale?.price) ||
+      Number(payload?.data?.price) ||
+      0;
+    let calculatedPrice = rawPrice / 100;
+    if (calculatedPrice <= 0) {
+      calculatedPrice = 0.01;
+    }
 
-  await trackPosthogEvent("Purchase", {
-    email,
-    value: calculatedPrice,
-    currency: "USD",
-    product_name: productName,
-    permalink,
-    tokens_added: tokensToAdd,
-    test_mode: payload?.test === 'true'
-  });
+    await trackPosthogEvent("Purchase", {
+      email,
+      value: calculatedPrice,
+      currency: "USD",
+      product_name: productName,
+      permalink,
+      tokens_added: tokensToAdd,
+      test_mode: payload?.test === "true",
+    });
 
-  return res.status(200).json({
-    success: true,
-    credited: true,
-    email,
-    tokensAdded: tokensToAdd,
-    tokensRemaining: nextTokens,
-  });
-});
+    return res.status(200).json({
+      success: true,
+      credited: true,
+      email,
+      tokensAdded: tokensToAdd,
+      tokensRemaining: nextTokens,
+    });
+  },
+);
 
 app.get("/api/user/:email", (req, res) => {
   const email = String(req.params.email || "")
