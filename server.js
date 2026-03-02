@@ -370,51 +370,87 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
 
 const SHARED_THEME_CONFIG = {
   MODERN_GAMING: {
-    label: "ULTIMATE CYBERPUNK RGB STREAMER ROOM",
+    label: "ultra-modern luxury RGB streamer battlestation",
     heroItems: [
       "Immersive Wall-to-Wall Neon RGB Lighting Panels (Nanoleaf style)",
       "Massive Triple-Monitor Curved Setup with Glowing Liquid-Cooled PC Tower",
       "Acoustic Foam Hexagon Wall Panels with LED Strips",
     ],
+    criticalRequirements: [
+      "integrated RGB ambient lighting with realistic bounce and glow",
+      "premium dual or triple monitor workstation with clean cable management",
+      "modern architectural accents and premium materials",
+      "balanced composition with realistic furniture scale and spacing",
+    ],
   },
   ANIME: {
-    label: "ANIME",
+    label: "vibrant anime and manga inspired otaku sanctuary",
     heroItems: [
       "Luffy Gear 5 Nendoroid (Shelf-size)",
       "Zoro Katana Wall Mount",
       "Stack of One Piece Manga Volumes",
     ],
+    criticalRequirements: [
+      "curated anime decor that feels premium and cohesive",
+      "stylish illuminated display shelving for figures and collectibles",
+      "bold but tasteful color accents inspired by anime aesthetics",
+      "high-end gaming setup integrated naturally into the room",
+    ],
   },
   HEAVY_METAL: {
-    label: "HEAVY METAL",
+    label: "dark industrial heavy metal music and gaming den",
     heroItems: [
       "Marshall Amp Stack",
       "Electric Guitar Wall Mount",
       "Metallica Framed Poster",
     ],
+    criticalRequirements: [
+      "moody cinematic lighting with deep shadows and metallic highlights",
+      "industrial textures such as concrete, steel, or distressed wood",
+      "music studio elements blended with a premium gaming station",
+      "strong heavy-metal identity without clutter or visual noise",
+    ],
   },
   RETRO_ARCADE: {
-    label: "RETRO ARCADE",
+    label: "80s retro arcade neon-lit gaming paradise",
     heroItems: [
       "Arcade1Up Pac-Man Counter-top",
       "Neon Ghost Sign",
       "Retro SNES Console",
     ],
+    criticalRequirements: [
+      "authentic 80s arcade atmosphere with colorful neon lighting",
+      "retro gaming props and decor placed in realistic scale",
+      "vintage-inspired color palette with clean composition",
+      "premium modern gaming desk setup fused with nostalgic style",
+    ],
   },
   FANTASY_RPG: {
-    label: "FANTASY RPG",
+    label: "medieval fantasy RPG tavern style gaming study",
     heroItems: [
       "Dragon Head Bookend",
       "Replica Witcher Silver Sword",
       "Framed Middle-earth Map",
     ],
+    criticalRequirements: [
+      "medieval tavern-inspired materials like dark wood and wrought iron",
+      "fantasy artifacts and props arranged with museum-like taste",
+      "warm atmospheric lighting reminiscent of torches and candlelight",
+      "high-end gaming command area that still matches fantasy aesthetics",
+    ],
   },
   SCI_FI: {
-    label: "SCI-FI",
+    label: "futuristic high-tech sci-fi spaceship command center",
     heroItems: [
       "Holographic LED Fan Display",
       "Vertical GPU Showcase",
       "NASA-punk Desk Mat",
+    ],
+    criticalRequirements: [
+      "clean futuristic architecture with smooth high-tech surfaces",
+      "layered sci-fi lighting with cyan, blue, and white accents",
+      "advanced command-center style workstation layout",
+      "minimalist precision with realistic premium interior photography",
     ],
   },
 };
@@ -614,7 +650,7 @@ app.post(
     const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
     console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
     const themeConfig = resolveThemeConfig(activeTheme);
-    const enhancedPrompt = `Transform this photo into a high-end gaming room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with RGB accents, add a premium gaming desk, and MUST include a premium gaming chair. Make it look like a real interior photograph.`;
+    const enhancedPrompt = `Transform this photo into a high-end room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with atmospheric accents that match the theme, add a premium desk setup, and MUST include a premium chair or seating that perfectly fits the ${themeConfig.label} aesthetic. Make it look like a real interior photograph.`;
 
     const TIMEOUT_MS = 90000;
     const aiResponse = await Promise.race([
@@ -686,12 +722,17 @@ app.post(
       saveLead(email.trim());
       tokensRemaining = 0;
     } else {
+      const currentTokens = Math.max(
+        0,
+        Number(existingLead?.tokensRemaining ?? 0),
+      );
+      const nextTokens = Math.max(0, currentTokens - 1);
       upsertLeadRecord(email.trim(), {
         premium: true,
         testMode: isTestMode,
-        tokensRemaining: Math.max(0, Number(existingLead?.tokensRemaining ?? 0)),
+        tokensRemaining: nextTokens,
       });
-      tokensRemaining = Math.max(0, Number(existingLead?.tokensRemaining ?? 0));
+      tokensRemaining = nextTokens;
     }
 
     res.json({
