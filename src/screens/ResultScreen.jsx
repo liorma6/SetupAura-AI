@@ -46,23 +46,7 @@ const ReviewSection = ({
   </div>
 );
 
-const ShoppingList = ({ items, loading, error }) => {
-  if (loading) {
-    return (
-      <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-200">
-        Loading shopping list...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-        {error}
-      </div>
-    );
-  }
-
+const ShoppingList = ({ items }) => {
   if (!items || !items.length) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
@@ -128,7 +112,7 @@ export const ResultScreen = () => {
   const preloadRequestRef = useRef(0);
   const initializedRef = useRef(false);
 
-  // תנאי מפתח: האם יש למשתמש גישה לרשימה הפתוחה?
+  // בדיקה: האם המשתמש הוא פרימיום?
   const hasUnlockedAccess = Boolean(isPremium || linkUnlocked);
 
   useEffect(() => {
@@ -288,7 +272,7 @@ export const ResultScreen = () => {
     }
   };
 
-  // הפונקציה הזו מעבירה משתמשים חינמיים למסך התשלום באופן מיידי
+  // משתמש חינמי שילחץ על הרשימה הנעולה יועבר לתשלום
   const handleViewShoppingList = () => {
     if (!hasUnlockedAccess) {
       setScreen("pricing");
@@ -392,12 +376,12 @@ export const ResultScreen = () => {
 
           {hasUnlockedAccess ? (
             <div className="space-y-4">
-              {/* פרימיום רואה את זה מיד בלי כפתור שמעכב אותו */}
-              <ShoppingList items={shoppingItems} loading={false} error="" />
+              {/* רשימה מידית לפרימיום בלי כפתורים ובלי טעינות */}
+              <ShoppingList items={shoppingItems} />
             </div>
           ) : (
             <div className="space-y-4">
-              {/* חינמי רואה תצוגה מטושטשת */}
+              {/* תצוגה מטושטשת למשתמש חינמי */}
               <div className="rounded-xl border border-white/10 bg-black/40 p-4 relative overflow-hidden">
                 <div className="blur-sm select-none pointer-events-none space-y-2 text-sm text-gray-300">
                   <div className="flex justify-between">
@@ -424,12 +408,11 @@ export const ResultScreen = () => {
                   </div>
                 </div>
               </div>
-              {/* כפתור למשתמש חינמי שמעביר למסך התשלום */}
               <button
                 onClick={handleViewShoppingList}
                 className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:scale-[1.01] active:scale-95 transition-transform"
               >
-                View Shopping List
+                Unlock Shopping List
               </button>
             </div>
           )}
