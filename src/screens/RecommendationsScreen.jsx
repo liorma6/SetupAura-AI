@@ -371,17 +371,25 @@ export const RecommendationsScreen = () => {
 
     if (showPremiumSuccess) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in duration-700">
-                <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mb-6 border border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.4)]">
-                    <Sparkles className="w-10 h-10 text-purple-400 animate-pulse" />
+            <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 animate-in zoom-in duration-500">
+                <div className="relative w-24 h-24 mb-8">
+                    <div className="absolute inset-0 bg-purple-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                    <div className="relative w-full h-full bg-[#0a0a0a] border border-purple-500/50 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+                        <Sparkles className="w-12 h-12 text-purple-400" />
+                    </div>
                 </div>
-                <h2 className="text-2xl font-black text-white mb-4 tracking-wide">Crafting Your Masterpiece...</h2>
-                <p className="text-gray-300 text-sm max-w-md mx-auto leading-relaxed mb-8">
-                    Our AI is currently building your high-end design and analyzing the room to generate your exact-match shopping list.
+
+                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-4 tracking-tight">
+                    Crafting Your Vision...
+                </h2>
+
+                <p className="text-gray-300 text-base max-w-md mx-auto leading-relaxed mb-10">
+                    Our AI is meticulously designing your high-end setup and curating an exact-match shopping list.
                     <br/><br/>
-                    <strong className="text-purple-300">You can safely close this page.</strong> Everything will be delivered directly to your email in just a few minutes!
+                    <span className="text-purple-300 font-semibold">Your masterpiece will be delivered directly to your inbox shortly. You may now safely leave this page.</span>
                 </p>
-                <button onClick={() => setScreen('welcome')} className="py-3 px-8 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-bold text-sm transition-all active:scale-95 text-white">
+
+                <button onClick={() => setScreen('welcome')} className="py-3 px-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 text-white shadow-lg shadow-purple-500/25">
                     Return to Home
                 </button>
             </div>

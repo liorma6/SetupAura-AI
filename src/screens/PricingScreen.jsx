@@ -48,10 +48,13 @@ export const PricingScreen = () => {
 
     const handleCheckoutClick = (tier) => {
         const value = Number(String(tier.price).replace(/[^0-9.]/g, '')) || 0;
-        posthog.capture('InitiateCheckout', { tier: tier.name, value, currency: 'USD' });
-        if (typeof window !== 'undefined' && window.fbq) {
-            window.fbq('track', 'InitiateCheckout', { content_name: tier.name, value, currency: 'USD' });
-        }
+        try {
+            posthog.capture('InitiateCheckout', { tier: tier.name, value, currency: 'USD' });
+            if (typeof window !== 'undefined' && window.fbq) {
+                window.fbq('track', 'InitiateCheckout', { content_name: tier.name, value, currency: 'USD' });
+            }
+        } catch(e) {}
+        window.location.href = tier.checkoutUrl;
     };
 
     return (
@@ -102,15 +105,7 @@ export const PricingScreen = () => {
                                     ))}
                                 </ul>
 
-                                <a
-                                    href={tier.checkoutUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={() => handleCheckoutClick(tier)}
-                                    className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}
-                                >
-                                    Upgrade Now
-                                </a>
+                                <button onClick={() => handleCheckoutClick(tier)} className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}>Upgrade Now</button>
                             </div>
                         );
                     })}
