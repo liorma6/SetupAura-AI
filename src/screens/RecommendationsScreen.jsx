@@ -116,7 +116,6 @@ export const RecommendationsScreen = () => {
             return;
         }
 
-        setFlow('loading');
         setError('');
         isGeneratingRef.current = true;
 
@@ -126,7 +125,20 @@ export const RecommendationsScreen = () => {
                 imagePayload = await toBase64(imagePayload);
             }
 
-            if (isPremium) {
+            let isUserPremium = isPremium; // current state from context
+            
+            // Quick pre-flight check if we don't know the status yet
+            if (!isUserPremium && emailToUse) {
+              try {
+                const userRes = await fetch(`${API_URL}/api/user/${encodeURIComponent(emailToUse)}`);
+                if (userRes.ok) {
+                  const userData = await userRes.json();
+                  isUserPremium = Boolean(userData.isPremium);
+                }
+              } catch (e) { console.error("Pre-flight premium check failed", e); }
+            }
+
+            if (isUserPremium) {
                 setShowPremiumSuccess(true);
                 fetch(`${API_URL}/api/generate-design`, {
                     method: 'POST',
@@ -158,6 +170,7 @@ export const RecommendationsScreen = () => {
                 return;
             }
 
+            setFlow('loading');
             console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
             const res = await fetch(`${API_URL}/api/generate-design`, {
                 method: 'POST',
