@@ -19,6 +19,7 @@ export const RecommendationsScreen = () => {
         uploadedImage,
         selectedTheme,
         verifiedEmail,
+        isPremium,
         setVerifiedEmail,
         setGeneratedImage,
         tokensRemaining,
@@ -125,6 +126,38 @@ export const RecommendationsScreen = () => {
                 imagePayload = await toBase64(imagePayload);
             }
 
+            if (isPremium) {
+                setShowPremiumSuccess(true);
+                fetch(`${API_URL}/api/generate-design`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: imagePayload,
+                        email: normalizedEmail,
+                        theme: selectedTheme || DEFAULT_THEME,
+                    }),
+                })
+                    .then(async (res) => {
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok) {
+                            if (data?.imageUrl) {
+                                setGeneratedImage(data.imageUrl);
+                            }
+                            if (typeof data.tokensRemaining === 'number') {
+                                setTokensRemaining(data.tokensRemaining);
+                            }
+                            setIsPremium(Boolean(data?.isPremium ?? true));
+                            markTrialUsed();
+                        } else {
+                            console.error('Premium background generation failed:', data?.error || res.statusText);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Premium background generation request failed:', error.message);
+                    });
+                return;
+            }
+
             console.log('DEBUG: Attempting to fetch from URL:', import.meta.env.VITE_API_URL);
             const res = await fetch(`${API_URL}/api/generate-design`, {
                 method: 'POST',
@@ -186,7 +219,7 @@ export const RecommendationsScreen = () => {
         } finally {
             isGeneratingRef.current = false;
         }
-    }, [uploadedImage, selectedTheme, setGeneratedImage, tokensRemaining, setTokensRemaining, setIsPremium, setScreen, toBase64]);
+    }, [uploadedImage, selectedTheme, isPremium, setGeneratedImage, tokensRemaining, setTokensRemaining, setIsPremium, setScreen, toBase64]);
 
     useEffect(() => {
         if (flow === 'loading' && verifiedEmail) {
@@ -336,26 +369,26 @@ export const RecommendationsScreen = () => {
         }
     };
 
-    if (flow === 'loading') {
-        if (showPremiumSuccess) {
-            return (
-                <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center mb-6">
-                        <ShieldCheck className="w-8 h-8 text-emerald-400" />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-4">Your design is ready!</h2>
-                    <p className="text-gray-300 max-w-md">
-                        We are currently analyzing the room to build your custom exact-match shopping list. You can safely close this page. We will email you the full results and the shopping list in a few minutes!
-                    </p>
-                    <button
-                        onClick={() => setScreen('welcome')}
-                        className="mt-8 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-bold hover:scale-105 transition-transform active:scale-95"
-                    >
-                        Back to Home
-                    </button>
+    if (showPremiumSuccess) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in duration-700">
+                <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mb-6 border border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.4)]">
+                    <Sparkles className="w-10 h-10 text-purple-400 animate-pulse" />
                 </div>
-            );
-        }
+                <h2 className="text-2xl font-black text-white mb-4 tracking-wide">Crafting Your Masterpiece...</h2>
+                <p className="text-gray-300 text-sm max-w-md mx-auto leading-relaxed mb-8">
+                    Our AI is currently building your high-end design and analyzing the room to generate your exact-match shopping list.
+                    <br/><br/>
+                    <strong className="text-purple-300">You can safely close this page.</strong> Everything will be delivered directly to your email in just a few minutes!
+                </p>
+                <button onClick={() => setScreen('welcome')} className="py-3 px-8 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-bold text-sm transition-all active:scale-95 text-white">
+                    Return to Home
+                </button>
+            </div>
+        );
+    }
+
+    if (flow === 'loading') {
         return (
             <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
                 <div className="animate-spin h-16 w-16 border-4 border-purple-500 border-t-transparent rounded-full mb-8" />

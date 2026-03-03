@@ -232,34 +232,34 @@ const InnerApp = () => {
     setAuthError("");
     try {
       const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: pendingEmail, code }),
       });
       const data = await res.json();
-      if (!res.ok)
-        throw new Error(data?.message || data?.error || "Verification failed");
-      const normalizedEmail = (data?.email || pendingEmail || "")
-        .trim()
-        .toLowerCase();
+      if (!res.ok) throw new Error(data?.message || data?.error || "Verification failed");
+      
+      const normalizedEmail = (data?.email || pendingEmail || "").trim().toLowerCase();
+      
+      // 1. Close the modal FIRST to prevent UI loops
+      setIsSignInOpen(false);
+      setStep("email");
+      setPendingEmail("");
+      setOtpDigits(emptyOtp);
+      
+      // 2. Set the global context states
       setVerifiedEmail(normalizedEmail);
       setTokensRemaining(Math.max(0, Number(data?.tokensRemaining) || 0));
       setIsPremium(Boolean(data?.isPremium));
-      try {
-        localStorage.setItem("setupaura_email", normalizedEmail);
-      } catch {}
+      try { localStorage.setItem("setupaura_email", normalizedEmail); } catch {}
+      
+      // 3. Handle Admin routing gracefully
       if (normalizedEmail === 'liorma6@gmail.com') {
-        closeSignIn();
-        setScreen('admin');
-        return;
+        setTimeout(() => setScreen('admin'), 100);
       }
-
-      closeSignIn();
-      // Do not call setScreen() for regular users, let them stay where they are.
-    } catch (err) {
-      setAuthError(err.message || "Verification failed");
-    } finally {
-      setVerifyingOtp(false);
+    } catch (err) { 
+      setAuthError(err.message || "Verification failed"); 
+    } finally { 
+      setVerifyingOtp(false); 
     }
   };
 
