@@ -116,14 +116,16 @@ const InnerApp = () => {
   // Global Auth Modal Functions
   const closeSignIn = () => {
     setIsSignInOpen(false);
-    setStep("email");
-    setPendingEmail("");
-    setOtpDigits(emptyOtp);
-    setAuthError("");
-    setSendingOtp(false);
-    setVerifyingOtp(false);
-    setOtpCooldown(0);
-    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    // Delay resetting states so the modal completely disappears first
+    setTimeout(() => {
+      setStep("email");
+      setPendingEmail("");
+      setOtpDigits(["", "", "", "", "", ""]);
+      setAuthError("");
+      setSendingOtp(false);
+      setVerifyingOtp(false);
+      setOtpCooldown(0);
+    }, 200);
   };
 
   const openSignIn = () => {
@@ -240,22 +242,24 @@ const InnerApp = () => {
       
       const normalizedEmail = (data?.email || pendingEmail || "").trim().toLowerCase();
       
-      // 1. Close the modal FIRST to prevent UI loops
-      setIsSignInOpen(false);
-      setStep("email");
-      setPendingEmail("");
-      setOtpDigits(emptyOtp);
-      
-      // 2. Set the global context states
+      // 1. Update global context first
       setVerifiedEmail(normalizedEmail);
       setTokensRemaining(Math.max(0, Number(data?.tokensRemaining) || 0));
       setIsPremium(Boolean(data?.isPremium));
       try { localStorage.setItem("setupaura_email", normalizedEmail); } catch {}
-      
-      // 3. Handle Admin routing gracefully
-      if (normalizedEmail === 'liorma6@gmail.com') {
-        setTimeout(() => setScreen('admin'), 100);
-      }
+
+      // 2. Safely close the modal
+      closeSignIn();
+
+      // 3. Route the user after a tiny delay to ensure smooth transition
+      setTimeout(() => {
+        if (normalizedEmail === 'liorma6@gmail.com') {
+          setScreen('admin');
+        } else if (screen === 'welcome') {
+          // Auto-redirect normal users to scan screen for better UX
+          setScreen('scan');
+        }
+      }, 100);
     } catch (err) { 
       setAuthError(err.message || "Verification failed"); 
     } finally { 
