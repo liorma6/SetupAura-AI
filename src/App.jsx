@@ -248,12 +248,14 @@ const InnerApp = () => {
       try {
         localStorage.setItem("setupaura_email", normalizedEmail);
       } catch {}
-      if (normalizedEmail === "liorma6@gmail.com") {
+      if (normalizedEmail === 'liorma6@gmail.com') {
         closeSignIn();
-        setScreen("admin");
+        setScreen('admin');
         return;
       }
+
       closeSignIn();
+      // Do not call setScreen() for regular users, let them stay where they are.
     } catch (err) {
       setAuthError(err.message || "Verification failed");
     } finally {

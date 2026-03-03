@@ -37,6 +37,7 @@ export const RecommendationsScreen = () => {
     const [otpLoading, setOtpLoading] = useState(false);
     const [sendingOtp, setSendingOtp] = useState(false);
     const [otpCooldown, setOtpCooldown] = useState(0);
+    const [showPremiumSuccess, setShowPremiumSuccess] = useState(false);
     const otpRefs = useRef([]);
     const cooldownRef = useRef(null);
     const isGeneratingRef = useRef(false);
@@ -165,6 +166,10 @@ export const RecommendationsScreen = () => {
             }
             setIsPremium(Boolean(data.isPremium));
             markTrialUsed();
+            if (data.backgroundProcessing === true) {
+                setShowPremiumSuccess(true);
+                return;
+            }
             setScreen('result');
         } catch (error) {
             console.error('DEBUG: Full Error Object:', error);
@@ -332,6 +337,25 @@ export const RecommendationsScreen = () => {
     };
 
     if (flow === 'loading') {
+        if (showPremiumSuccess) {
+            return (
+                <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center mb-6">
+                        <ShieldCheck className="w-8 h-8 text-emerald-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Your design is ready!</h2>
+                    <p className="text-gray-300 max-w-md">
+                        We are currently analyzing the room to build your custom exact-match shopping list. You can safely close this page. We will email you the full results and the shopping list in a few minutes!
+                    </p>
+                    <button
+                        onClick={() => setScreen('welcome')}
+                        className="mt-8 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl font-bold hover:scale-105 transition-transform active:scale-95"
+                    >
+                        Back to Home
+                    </button>
+                </div>
+            );
+        }
         return (
             <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
                 <div className="animate-spin h-16 w-16 border-4 border-purple-500 border-t-transparent rounded-full mb-8" />

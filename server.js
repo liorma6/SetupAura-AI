@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -846,64 +847,13 @@ app.post(
       const generatedBuffer = Buffer.from(generatedBase64, "base64");
       const processedBuffer = await sharp(generatedBuffer)
         .trim({ threshold: 10 })
-        .resize(inputWidth || 1024, inputHeight || 1024, {
-          fit: "cover",
-          position: "centre",
-        })
+        .resize(inputWidth || 1024, inputHeight || 1024, { fit: "cover", position: "centre" })
         .jpeg({ quality: 92 })
         .toBuffer();
-      const finalGeneratedBuffer = hasUnlockedAccess
-        ? processedBuffer
-        : await applyWatermarkForFreeUser(processedBuffer);
+      const finalGeneratedBuffer = hasUnlockedAccess ? processedBuffer : await applyWatermarkForFreeUser(processedBuffer);
       await fs.promises.writeFile(filepath, finalGeneratedBuffer);
       console.log(`[Saved] ${filepath}`);
       const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
-
-      let fullShoppingList = [];
-      let retries = 3;
-      while (retries > 0 && fullShoppingList.length === 0) {
-        try {
-          const maybeShoppingList = await analyzeRoomWithGemini({
-            mimeType: "image/jpeg",
-            data: generatedBase64,
-            selectedTheme: activeTheme,
-          });
-          fullShoppingList = Array.isArray(maybeShoppingList)
-            ? maybeShoppingList
-            : [];
-          if (fullShoppingList.length > 0) break;
-        } catch (shoppingErr) {
-          console.error(
-            `[SHOPPING_LIST_ERROR] Retries left: ${retries - 1}`,
-            shoppingErr.message,
-          );
-        }
-        retries--;
-        if (retries > 0) await new Promise((res) => setTimeout(res, 2000));
-      }
-
-      const metadataPayload = {
-        resultId: filename,
-        userEmail: email.trim(),
-        theme: activeTheme,
-        originalImageUrl,
-        generatedImageUrl: imageUrl,
-        shoppingList: fullShoppingList,
-        shoppingListStatus: fullShoppingList.length > 0 ? "ready" : "pending",
-        timestamp: new Date().toISOString(),
-      };
-      const metadataFilePath = path.join(
-        METADATA_DIR,
-        `${path.parse(filename).name}.json`,
-      );
-      ensureUploadDirs();
-      await fs.promises.writeFile(
-        metadataFilePath,
-        JSON.stringify(metadataPayload, null, 2),
-      );
-      console.log(`[Saved Metadata] ${metadataFilePath}`);
-
-      const lockedShoppingList = buildLockedShoppingList();
 
       const tokensRemaining = Math.max(0, currentTokens - 1);
       upsertLeadRecord(email.trim(), {
@@ -912,63 +862,118 @@ app.post(
         tokensRemaining,
       });
 
-      res.json({
-        resultId: filename,
-        imageUrl,
-        originalImageUrl,
-        shoppingList: hasUnlockedAccess ? fullShoppingList : lockedShoppingList,
-        shoppingListStatus: fullShoppingList.length > 0 ? "ready" : "pending",
-        shoppingListUnlocked: hasUnlockedAccess,
-        tokensRemaining,
-        isPremium: Boolean(existingLead?.premium),
-        testMode: Boolean(existingLead?.testMode),
-      });
+      const redirectLink = buildFrontendUrl("/result", { id: filename });
 
-      if (process.env.EMAIL_USER && email) {
-        const redirectLink = buildFrontendUrl("/result", { id: filename });
-        const adminEmailBody = `
-                    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
-                        <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Admin Design Is Ready</h1>
-                        <p style="color:#cbd5e1;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
-                        <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
-                        ${renderShoppingListHtml(fullShoppingList, true)}
-                        <div style="margin-top:18px;">
-                            <a href="${redirectLink}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open Your Result</a>
-                        </div>
-                    </div>
-                `;
+      if (!hasUnlockedAccess) {
+        // FREE USER FLOW: Skip Gemini
+        const lockedShoppingList = buildLockedShoppingList();
+        const metadataPayload = {
+          resultId: filename,
+          userEmail: email.trim(),
+          theme: activeTheme,
+          originalImageUrl,
+          generatedImageUrl: imageUrl,
+          shoppingList: [],
+          shoppingListStatus: "locked",
+          timestamp: new Date().toISOString(),
+        };
+        const metadataFilePath = path.join(METADATA_DIR, `${path.parse(filename).name}.json`);
+        await fs.promises.writeFile(metadataFilePath, JSON.stringify(metadataPayload, null, 2));
 
-        const regularEmailBody = `
-                    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
-                        <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
-                        <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
-                        <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
-                        ${renderShoppingListHtml(lockedShoppingList, false)}
-                        <div style="margin-top:20px;text-align:center;">
-                            <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Your Result</a>
-                        </div>
-                    </div>
-                `;
-        transporter
-          .sendMail({
+        res.json({
+          resultId: filename,
+          imageUrl,
+          originalImageUrl,
+          shoppingList: lockedShoppingList,
+          shoppingListStatus: "locked",
+          shoppingListUnlocked: false,
+          tokensRemaining,
+          isPremium: false,
+          testMode: Boolean(existingLead?.testMode),
+        });
+
+        if (process.env.EMAIL_USER && email) {
+          const regularEmailBody = `
+            <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
+                <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
+                <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+                <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
+                ${renderShoppingListHtml(lockedShoppingList, false)}
+                <div style="margin-top:20px;text-align:center;">
+                    <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Your Result</a>
+                </div>
+            </div>`;
+          transporter.sendMail({
             from: '"SetupAura AI" <noreply@setupaura.com>',
             to: email.trim(),
-            subject: hasUnlockedAccess
-              ? "Your Full Design + Shopping List"
-              : "Your Design Is Ready + Unlock Shopping List",
-            html: hasUnlockedAccess ? adminEmailBody : regularEmailBody,
-            attachments: [
-              {
-                filename: "your-design.jpg",
-                content: finalGeneratedBuffer,
-                cid: "design_image",
-              },
-            ],
-          })
-          .then(() => console.log(`[Email] Sent to ${email}`))
-          .catch((mailErr) =>
-            console.error("[Email] Failed:", mailErr.message),
-          );
+            subject: "Your Design Is Ready + Unlock Shopping List",
+            html: regularEmailBody,
+            attachments: [{ filename: "your-design.jpg", content: finalGeneratedBuffer, cid: "design_image" }]
+          }).catch(err => console.error("[Email Failed]", err.message));
+        }
+
+      } else {
+        // PREMIUM USER FLOW: Immediate response, Background Gemini
+        res.json({
+          resultId: filename,
+          imageUrl,
+          originalImageUrl,
+          shoppingListStatus: "processing",
+          shoppingListUnlocked: true,
+          tokensRemaining,
+          isPremium: true,
+          testMode: Boolean(existingLead?.testMode),
+          backgroundProcessing: true // Flag for frontend
+        });
+
+        (async () => {
+          try {
+            let fullShoppingList = [];
+            let retries = 3;
+            while (retries > 0 && fullShoppingList.length === 0) {
+              try {
+                const maybeShoppingList = await analyzeRoomWithGemini({ mimeType: "image/jpeg", data: generatedBase64, selectedTheme: activeTheme });
+                fullShoppingList = Array.isArray(maybeShoppingList) ? maybeShoppingList : [];
+                if (fullShoppingList.length > 0) break;
+              } catch (shoppingErr) { console.error(`[Gemini Retry] left:`, shoppingErr.message); }
+              retries--;
+              if (retries > 0) await new Promise((res) => setTimeout(res, 2000));
+            }
+
+            const metadataPayload = {
+              resultId: filename,
+              userEmail: email.trim(),
+              theme: activeTheme,
+              originalImageUrl,
+              generatedImageUrl: imageUrl,
+              shoppingList: fullShoppingList,
+              shoppingListStatus: fullShoppingList.length > 0 ? "ready" : "failed",
+              timestamp: new Date().toISOString(),
+            };
+            const metadataFilePath = path.join(METADATA_DIR, `${path.parse(filename).name}.json`);
+            await fs.promises.writeFile(metadataFilePath, JSON.stringify(metadataPayload, null, 2));
+
+            if (process.env.EMAIL_USER && email) {
+              const adminEmailBody = `
+                <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
+                    <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Premium Design & Shopping List</h1>
+                    <p style="color:#cbd5e1;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+                    <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
+                    ${renderShoppingListHtml(fullShoppingList, true)}
+                    <div style="margin-top:18px;">
+                        <a href="${redirectLink}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open Your Result</a>
+                    </div>
+                </div>`;
+              await transporter.sendMail({
+                from: '"SetupAura AI" <noreply@setupaura.com>',
+                to: email.trim(),
+                subject: "Your Full Design + Shopping List",
+                html: adminEmailBody,
+                attachments: [{ filename: "your-design.jpg", content: finalGeneratedBuffer, cid: "design_image" }]
+              });
+            }
+          } catch (bgErr) { console.error("[BACKGROUND_TASK_ERROR]", bgErr.message); }
+        })();
       }
     } catch (error) {
       console.error("[ERROR]", error.message);
@@ -1321,6 +1326,36 @@ app.post(
       tokens_added: tokensToAdd,
       test_mode: payload?.test === "true",
     });
+
+    if (process.env.FB_PIXEL_ID && process.env.FB_ACCESS_TOKEN) {
+      try {
+        const hashedEmail = crypto
+          .createHash("sha256")
+          .update(email)
+          .digest("hex");
+        await fetch(
+          `https://graph.facebook.com/v19.0/${process.env.FB_PIXEL_ID}/events?access_token=${process.env.FB_ACCESS_TOKEN}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              data: [
+                {
+                  event_name: "Purchase",
+                  event_time: Math.floor(Date.now() / 1000),
+                  action_source: "website",
+                  user_data: { em: [hashedEmail] },
+                  custom_data: { currency: "USD", value: calculatedPrice },
+                },
+              ],
+            }),
+          },
+        );
+        console.log("[Facebook CAPI] Purchase event sent for", email);
+      } catch (fbErr) {
+        console.error("[Facebook CAPI Error]", fbErr.message);
+      }
+    }
 
     return res.status(200).json({
       success: true,
