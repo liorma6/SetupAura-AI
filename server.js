@@ -1267,25 +1267,7 @@ app.post(
       return res.status(403).json({ error: "INVALID_WEBHOOK_SECRET" });
     }
 
-    console.log(">>> GUMROAD WEBHOOK HIT!", new Date().toISOString());
-    console.log("GUMROAD HEADERS:", req.headers["content-type"]);
-    console.log("GUMROAD BODY KEYS:", Object.keys(req.body || {}));
-    console.log(">>> [WEBHOOK BODY]:", JSON.stringify(req.body));
-    console.log(
-      ">>> INCOMING GUMROAD REQUEST:",
-      req.method,
-      req.originalUrl,
-      "BODY:",
-      JSON.stringify(req.body),
-    );
-    console.log(
-      ">> GUMROAD PING AT:",
-      new Date().toISOString(),
-      "BODY:",
-      req.body,
-    );
-    console.log(">> GUMROAD PING RECEIVED", JSON.stringify(req.body));
-    console.log(">> FULL GUMROAD PAYLOAD:", JSON.stringify(req.body, null, 2));
+    console.log("[Gumroad] Webhook received", { method: req.method, keys: Object.keys(req.body || {}), timestamp: new Date().toISOString() });
     const payload = req.body || {};
     const email = String(payload?.email || "")
       .trim()
