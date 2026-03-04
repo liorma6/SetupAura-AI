@@ -914,7 +914,7 @@ app.post(
                 </div>
             </div>`;
           transporter.sendMail({
-            from: '"SetupAura AI" <noreply@setupaura.com>',
+            from: '"SetupAura AI" <' + process.env.EMAIL_USER + '>',
             to: email.trim(),
             subject: "Your Design Is Ready + Unlock Shopping List",
             html: regularEmailBody,
@@ -975,7 +975,7 @@ app.post(
                     </div>
                 </div>`;
               await transporter.sendMail({
-                from: '"SetupAura AI" <noreply@setupaura.com>',
+                from: '"SetupAura AI" <' + process.env.EMAIL_USER + '>',
                 to: email.trim(),
                 subject: "Your Full Design + Shopping List",
                 html: adminEmailBody,
@@ -1182,7 +1182,7 @@ const requestOtpHandler = async (req, res) => {
   });
   try {
     await transporter.sendMail({
-      from: '"SetupAura AI" <noreply@setupaura.com>',
+      from: '"SetupAura AI" <' + process.env.EMAIL_USER + '>',
       to: email.trim(),
       subject: "Your SetupAura Verification Code",
       html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0d0d0d;color:#fff;padding:40px;border-radius:12px;border:1px solid #3b0764;">
