@@ -339,7 +339,7 @@ const InnerApp = () => {
   };
 
   return (
-    <div className="mobile-wrapper flex flex-col relative overflow-hidden bg-background">
+    <div className="mobile-wrapper flex flex-col min-h-screen relative overflow-hidden bg-background">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <Header
         onHomeClick={handleHomeClick}
@@ -348,6 +348,18 @@ const InnerApp = () => {
 
       <div className="flex-1 overflow-hidden relative w-full pt-20">
         <AnimatePresence mode="wait">{renderScreen()}</AnimatePresence>
+      </div>
+
+      <div className="w-full text-center py-4 mt-auto">
+        <p className="text-[11px] text-gray-500/70">
+          Need help?{" "}
+          <a
+            href="mailto:support@setupaura.online"
+            className="underline hover:text-gray-400 transition-colors"
+          >
+            support@setupaura.online
+          </a>
+        </p>
       </div>
 
       <Footer
