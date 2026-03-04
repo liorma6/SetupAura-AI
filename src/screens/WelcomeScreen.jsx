@@ -13,8 +13,8 @@ export const WelcomeScreen = ({ onStart }) => {
 
   const showcasePairs = [
     { before: "/beforeLior.jpeg", after: "/afterLior.png" },
-    { before: "/beforeHila.JPG", after: "/afterHila.png" },
-    { before: "/beforeEric.jpg", after: "/afterEric_final.png" },
+    { before: "/Before2.png", after: "/After2.png" },
+    { before: "/Before3.png", after: "/After3.png" },
   ];
 
   const [isSignInOpen, setIsSignInOpen] = useState(false);
