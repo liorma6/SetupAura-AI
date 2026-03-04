@@ -3,16 +3,17 @@ import { createContext, useContext, useEffect, useState } from 'react';
 const AppContext = createContext();
 const APP_STATE_KEY = 'setupaura_app_state';
 
-const getInitialState = () => {
-    const initialPath = window.location.pathname;
-    const queryView = new URLSearchParams(window.location.search).get('view');
-    const fallbackScreen = initialPath === '/pricing' || queryView === 'pricing'
-        ? 'pricing'
-        : initialPath === '/result' || queryView === 'result'
-            ? 'result'
-            : 'welcome';
+const getInitialScreen = () => {
+    if (typeof window === 'undefined') return 'welcome';
+    const path = window.location.pathname;
+    if (path.includes('/result')) return 'result';
+    if (path.includes('/pricing')) return 'pricing';
+    if (path.includes('/admin')) return 'admin';
+    return 'welcome';
+};
+
+const getStoredState = () => {
     const fallbackState = {
-        screen: fallbackScreen,
         uploadedImage: null,
         selectedTheme: null,
         generatedImage: null,
@@ -20,14 +21,13 @@ const getInitialState = () => {
         tokensRemaining: 1,
         isPremium: false,
     };
-
+    if (typeof window === 'undefined') return fallbackState;
     try {
         const raw = sessionStorage.getItem(APP_STATE_KEY);
         if (!raw) return fallbackState;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return fallbackState;
         return {
-            screen: typeof parsed.screen === 'string' ? parsed.screen : fallbackState.screen,
             uploadedImage: parsed.uploadedImage ?? null,
             selectedTheme: parsed.selectedTheme ?? null,
             generatedImage: parsed.generatedImage ?? null,
@@ -41,58 +41,88 @@ const getInitialState = () => {
 };
 
 export const AppProvider = ({ children }) => {
-    const [state, setState] = useState(getInitialState);
+    const storedState = getStoredState();
+    const [screen, setScreenState] = useState(getInitialScreen);
+    const [uploadedImage, setUploadedImageState] = useState(storedState.uploadedImage);
+    const [selectedTheme, setSelectedThemeState] = useState(storedState.selectedTheme);
+    const [generatedImage, setGeneratedImageState] = useState(storedState.generatedImage);
+    const [verifiedEmail, setVerifiedEmailState] = useState(storedState.verifiedEmail);
+    const [tokensRemaining, setTokensRemainingState] = useState(storedState.tokensRemaining);
+    const [isPremium, setIsPremiumState] = useState(storedState.isPremium);
 
     useEffect(() => {
         try {
-            sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+            sessionStorage.setItem(APP_STATE_KEY, JSON.stringify({
+                screen,
+                uploadedImage,
+                selectedTheme,
+                generatedImage,
+                verifiedEmail,
+                tokensRemaining,
+                isPremium
+            }));
         } catch {}
-    }, [state]);
+    }, [screen, uploadedImage, selectedTheme, generatedImage, verifiedEmail, tokensRemaining, isPremium]);
 
     const setScreen = (screen) => {
-        const path = screen === 'pricing' ? '/pricing' : screen === 'result' ? '/result' : '/';
+        const path = screen === 'pricing'
+            ? '/pricing'
+            : screen === 'result'
+                ? '/result'
+                : screen === 'admin'
+                    ? '/admin'
+                    : '/';
         if (window.location.pathname !== path) {
             window.history.pushState({}, '', path);
         }
-        setState(prev => ({ ...prev, screen }));
+        setScreenState(screen);
     };
-    const setUploadedImage = (image) => setState(prev => ({ ...prev, uploadedImage: image }));
-    const setSelectedTheme = (theme) => setState(prev => ({ ...prev, selectedTheme: theme }));
-    const setGeneratedImage = (image) => setState(prev => ({ ...prev, generatedImage: image }));
-    const setVerifiedEmail = (email) => setState(prev => ({ ...prev, verifiedEmail: email }));
-    const setTokensRemaining = (tokens) => setState(prev => ({
-        ...prev,
-        tokensRemaining: Math.max(0, Number.isFinite(tokens) ? Math.floor(tokens) : prev.tokensRemaining)
-    }));
-    const addTokens = (tokens) => setState(prev => ({
-        ...prev,
-        tokensRemaining: Math.max(0, (Number(prev.tokensRemaining) || 0) + Math.max(0, Number(tokens) || 0))
-    }));
-    const decrementTokens = () => setState(prev => ({
-        ...prev,
-        tokensRemaining: Math.max(0, (Number(prev.tokensRemaining) || 0) - 1)
-    }));
-    const setIsPremium = (isPremium) => setState(prev => ({ ...prev, isPremium: Boolean(isPremium) }));
+    const setUploadedImage = (image) => setUploadedImageState(image);
+    const setSelectedTheme = (theme) => setSelectedThemeState(theme);
+    const setGeneratedImage = (image) => setGeneratedImageState(image);
+    const setVerifiedEmail = (email) => setVerifiedEmailState(email);
+    const setTokensRemaining = (tokens) =>
+        setTokensRemainingState((prev) =>
+            Math.max(0, Number.isFinite(tokens) ? Math.floor(tokens) : prev)
+        );
+    const addTokens = (tokens) =>
+        setTokensRemainingState((prev) =>
+            Math.max(0, (Number(prev) || 0) + Math.max(0, Number(tokens) || 0))
+        );
+    const decrementTokens = () =>
+        setTokensRemainingState((prev) => Math.max(0, (Number(prev) || 0) - 1));
+    const setIsPremium = (nextPremium) => setIsPremiumState(Boolean(nextPremium));
 
     const resetApp = () => {
-        const resetState = {
-            screen: 'scan',
-            uploadedImage: null,
-            selectedTheme: null,
-            generatedImage: null,
-            verifiedEmail: '',
-            tokensRemaining: 1,
-            isPremium: false
-        };
-        setState(resetState);
+        setScreenState('scan');
+        setUploadedImageState(null);
+        setSelectedThemeState(null);
+        setGeneratedImageState(null);
+        setVerifiedEmailState('');
+        setTokensRemainingState(1);
+        setIsPremiumState(false);
         try {
-            sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(resetState));
+            sessionStorage.setItem(APP_STATE_KEY, JSON.stringify({
+                screen: 'scan',
+                uploadedImage: null,
+                selectedTheme: null,
+                generatedImage: null,
+                verifiedEmail: '',
+                tokensRemaining: 1,
+                isPremium: false
+            }));
         } catch {}
     };
 
     return (
         <AppContext.Provider value={{
-            ...state,
+            screen,
+            uploadedImage,
+            selectedTheme,
+            generatedImage,
+            verifiedEmail,
+            tokensRemaining,
+            isPremium,
             setScreen,
             setUploadedImage,
             setSelectedTheme,

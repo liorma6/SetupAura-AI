@@ -22,7 +22,9 @@ export const AdminScreen = () => {
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${API_URL}/api/admin/users`, {
-        headers: { "admin-email": verifiedEmail },
+        headers: {
+          "admin-secret": localStorage.getItem("setupaura_admin_secret") || "",
+        },
       });
       if (res.ok) setUsers(await res.json());
     } catch (err) {
@@ -41,7 +43,7 @@ export const AdminScreen = () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "admin-email": verifiedEmail,
+        "admin-secret": localStorage.getItem("setupaura_admin_secret") || "",
       },
       body: JSON.stringify({ targetEmail: email, newTokens: tokens }),
     });
@@ -53,7 +55,7 @@ export const AdminScreen = () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "admin-email": verifiedEmail,
+        "admin-secret": localStorage.getItem("setupaura_admin_secret") || "",
       },
       body: JSON.stringify({ targetEmail: email, isPremium: !currentStatus }),
     });

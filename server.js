@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
+import rateLimit from "express-rate-limit";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -45,6 +46,7 @@ const POSTHOG_HOST = (
   process.env.VITE_PUBLIC_POSTHOG_HOST ||
   "https://us.i.posthog.com"
 ).replace(/\/+$/, "");
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: "TOO_MANY_REQUESTS", message: "Please slow down." } });
 
 setInterval(
   () => {
@@ -66,8 +68,8 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ limit: "100mb", extended: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const IMAGES_DIR = path.join(UPLOADS_DIR, "images");
@@ -640,6 +642,7 @@ const applyWatermarkForFreeUser = async (imageBuffer) => {
 
 app.post(
   "/api/generate-design",
+  apiLimiter,
   (req, res, next) => {
     const contentType = req.headers["content-type"] || "";
     if (contentType.includes("multipart/form-data")) {
@@ -1240,6 +1243,11 @@ app.post(
   express.urlencoded({ extended: true }),
   express.json(),
   async (req, res) => {
+    const webhookSecret = req.query.secret;
+    if (process.env.GUMROAD_WEBHOOK_SECRET && webhookSecret !== process.env.GUMROAD_WEBHOOK_SECRET) {
+      return res.status(403).json({ error: "INVALID_WEBHOOK_SECRET" });
+    }
+
     console.log(">>> GUMROAD WEBHOOK HIT!", new Date().toISOString());
     console.log("GUMROAD HEADERS:", req.headers["content-type"]);
     console.log("GUMROAD BODY KEYS:", Object.keys(req.body || {}));
@@ -1394,7 +1402,8 @@ app.get("/api/user/:email", (req, res) => {
 });
 
 app.get("/api/admin/users", (req, res) => {
-  if (req.headers["admin-email"] !== "liorma6@gmail.com") {
+  const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
+  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
 
@@ -1403,7 +1412,8 @@ app.get("/api/admin/users", (req, res) => {
 });
 
 app.post("/api/admin/update-tokens", (req, res) => {
-  if (req.headers["admin-email"] !== "liorma6@gmail.com") {
+  const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
+  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
 
@@ -1438,7 +1448,8 @@ app.post("/api/admin/update-tokens", (req, res) => {
 });
 
 app.post("/api/admin/toggle-premium", (req, res) => {
-  if (req.headers["admin-email"] !== ADMIN_EMAIL) {
+  const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
+  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
   const { targetEmail, isPremium } = req.body;
@@ -1462,12 +1473,13 @@ app.post("/api/admin/toggle-premium", (req, res) => {
 
 app.post("/api/admin-upgrade", (req, res) => {
   const { email, tokensToAdd } = req.body || {};
+  const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
+  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: "FORBIDDEN" });
+  }
   const normalizedEmail = String(email || "")
     .trim()
     .toLowerCase();
-  if (normalizedEmail !== ADMIN_EMAIL.toLowerCase()) {
-    return res.status(403).json({ error: "FORBIDDEN" });
-  }
 
   const amount = Math.max(0, Math.floor(Number(tokensToAdd) || 0));
   if (amount <= 0) {

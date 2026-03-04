@@ -254,7 +254,13 @@ const InnerApp = () => {
       // 3. Route the user after a tiny delay to ensure smooth transition
       setTimeout(() => {
         if (normalizedEmail === 'liorma6@gmail.com') {
-          setScreen('admin');
+          const secret = window.prompt("Enter Admin Secret:");
+          if (secret) {
+            localStorage.setItem("setupaura_admin_secret", secret);
+            setScreen('admin');
+          } else {
+            setScreen('scan'); // fallback if canceled
+          }
         } else if (screen === 'welcome') {
           // Auto-redirect normal users to scan screen for better UX
           setScreen('scan');
