@@ -843,6 +843,11 @@ app.post(
         });
       }
 
+      if (!aiResponse?.data || !aiResponse?.data[0] || !aiResponse?.data[0]?.b64_json) {
+        console.error("[IMAGE_GENERATION_ERROR] No URL returned, possibly rejected by safety system.");
+        return res.status(400).json({ error: "SAFETY_SYSTEM_REJECTED", message: "Your request was rejected by the safety system. Please try a different image." });
+      }
+
       const generatedBase64 = aiResponse.data[0].b64_json;
       const filename = `gen-${Date.now()}.jpg`;
       ensureUploadDirs();
@@ -1075,18 +1080,30 @@ app.get("/api/result/:id", async (req, res) => {
   }
 });
 
-app.post("/api/analyze-room", async (req, res) => {
+app.post("/api/analyze-room", apiLimiter, upload.single("image"), async (req, res) => {
   const { image, imageUrl, selectedTheme } = req.body || {};
 
-  if (!image && !imageUrl) {
+  if (!image && !imageUrl && !req.file) {
     return res.status(400).json({ error: "image or imageUrl is required" });
   }
 
   try {
-    const { mimeType, data } = await getImageInputForGemini({
-      image,
-      imageUrl,
-    });
+    let mimeType;
+    let data;
+
+    if (req.file?.path) {
+      const fileBuffer = await fs.promises.readFile(req.file.path);
+      mimeType = req.file.mimetype || detectMimeType(req.file.originalname || req.file.path);
+      data = fileBuffer.toString("base64");
+    } else {
+      const imageInput = await getImageInputForGemini({
+        image,
+        imageUrl,
+      });
+      mimeType = imageInput.mimeType;
+      data = imageInput.data;
+    }
+
     const items = await analyzeRoomWithGemini({
       mimeType,
       data,
