@@ -139,8 +139,7 @@ export const RecommendationsScreen = () => {
             }
 
             if (isUserPremium) {
-                setShowPremiumSuccess(true);
-                fetch(`${API_URL}/api/generate-design`, {
+                const response = await fetch(`${API_URL}/api/generate-design`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -148,25 +147,23 @@ export const RecommendationsScreen = () => {
                         email: normalizedEmail,
                         theme: selectedTheme || DEFAULT_THEME,
                     }),
-                })
-                    .then(async (res) => {
-                        const data = await res.json().catch(() => ({}));
-                        if (res.ok) {
-                            if (data?.imageUrl) {
-                                setGeneratedImage(data.imageUrl);
-                            }
-                            if (typeof data.tokensRemaining === 'number') {
-                                setTokensRemaining(data.tokensRemaining);
-                            }
-                            setIsPremium(Boolean(data?.isPremium ?? true));
-                            markTrialUsed();
-                        } else {
-                            console.error('Premium background generation failed:', data?.error || res.statusText);
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('Premium background generation request failed:', error.message);
-                    });
+                });
+                const responseData = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const errorData = responseData || {};
+                    setError(errorData.message || errorData.error || 'Generation failed');
+                    setFlow('email');
+                    return;
+                }
+                if (responseData?.imageUrl) {
+                    setGeneratedImage(responseData.imageUrl);
+                }
+                if (typeof responseData.tokensRemaining === 'number') {
+                    setTokensRemaining(responseData.tokensRemaining);
+                }
+                setIsPremium(Boolean(responseData?.isPremium ?? true));
+                markTrialUsed();
+                setShowPremiumSuccess(true);
                 return;
             }
 
