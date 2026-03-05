@@ -108,7 +108,7 @@ const InnerApp = () => {
   const otpRefs = useRef([]);
 
   useEffect(() => {
-    if (window.fbq) {
+    if (typeof window !== "undefined" && window.fbq) {
       window.fbq("trackCustom", "ScreenViewed", { screen_name: screen });
     }
   }, [screen]);
@@ -242,8 +242,12 @@ const InnerApp = () => {
       const data = await res.json();
       if (!res.ok)
         throw new Error(data?.message || data?.error || "Verification failed");
-      if (window.fbq) window.fbq("track", "Lead");
-      if (window.posthog) window.posthog.capture("Lead");
+      if (typeof window !== "undefined" && window.fbq) {
+        window.fbq("track", "Lead");
+      }
+      if (typeof window !== "undefined" && window.posthog) {
+        window.posthog.capture("Lead");
+      }
       const normalizedEmail = (data?.email || pendingEmail || "")
         .trim()
         .toLowerCase();
