@@ -242,10 +242,8 @@ const InnerApp = () => {
       const data = await res.json();
       if (!res.ok)
         throw new Error(data?.message || data?.error || "Verification failed");
-      if (window.fbq) {
-        window.fbq("track", "Lead");
-      }
-      posthog.capture("Lead");
+      if (window.fbq) window.fbq("track", "Lead");
+      if (window.posthog) window.posthog.capture("Lead");
       const normalizedEmail = (data?.email || pendingEmail || "")
         .trim()
         .toLowerCase();
