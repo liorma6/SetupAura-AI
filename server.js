@@ -46,7 +46,11 @@ const POSTHOG_HOST = (
   process.env.VITE_PUBLIC_POSTHOG_HOST ||
   "https://us.i.posthog.com"
 ).replace(/\/+$/, "");
-const apiLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: "TOO_MANY_REQUESTS", message: "Please slow down." } });
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: "TOO_MANY_REQUESTS", message: "Please slow down." },
+});
 
 setInterval(
   () => {
@@ -219,10 +223,13 @@ const buildFrontendUrl = (targetPath = "/", query = {}) => {
 };
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.hostinger.com",
-  port: 465,
+  host: process.env.EMAIL_HOST || "smtp.resend.com",
+  port: process.env.EMAIL_PORT || 465,
   secure: true,
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 transporter
@@ -586,7 +593,9 @@ const ensureShoppingListForResult = async ({
       const existingList = Array.isArray(parsed?.shoppingList)
         ? normalizeShoppingList(parsed.shoppingList)
         : [];
-      const currentStatus = String(parsed?.shoppingListStatus || "").toLowerCase();
+      const currentStatus = String(
+        parsed?.shoppingListStatus || "",
+      ).toLowerCase();
 
       if (existingList.length > 0 || currentStatus !== "pending") {
         return;
@@ -602,7 +611,8 @@ const ensureShoppingListForResult = async ({
           selectedTheme: parsed?.theme || "MODERN GAMING (RGB)",
         });
         parsed.shoppingList = generatedList;
-        parsed.shoppingListStatus = generatedList.length > 0 ? "ready" : "failed";
+        parsed.shoppingListStatus =
+          generatedList.length > 0 ? "ready" : "failed";
       } catch (regenErr) {
         console.error("[RESULT_SHOPPING_REGEN_ERROR]", regenErr.message);
         parsed.shoppingList = existingList;
@@ -845,9 +855,21 @@ app.post(
         });
       }
 
-      if (!aiResponse?.data || !aiResponse?.data[0] || !aiResponse?.data[0]?.b64_json) {
-        console.error("[IMAGE_GENERATION_ERROR] No URL returned, possibly rejected by safety system.");
-        return res.status(400).json({ error: "SAFETY_SYSTEM_REJECTED", message: "Your request was rejected by the safety system. Please try a different image." });
+      if (
+        !aiResponse?.data ||
+        !aiResponse?.data[0] ||
+        !aiResponse?.data[0]?.b64_json
+      ) {
+        console.error(
+          "[IMAGE_GENERATION_ERROR] No URL returned, possibly rejected by safety system.",
+        );
+        return res
+          .status(400)
+          .json({
+            error: "SAFETY_SYSTEM_REJECTED",
+            message:
+              "Your request was rejected by the safety system. Please try a different image.",
+          });
       }
 
       const generatedBase64 = aiResponse.data[0].b64_json;
@@ -857,10 +879,15 @@ app.post(
       const generatedBuffer = Buffer.from(generatedBase64, "base64");
       const processedBuffer = await sharp(generatedBuffer)
         .trim({ threshold: 10 })
-        .resize(inputWidth || 1024, inputHeight || 1024, { fit: "cover", position: "centre" })
+        .resize(inputWidth || 1024, inputHeight || 1024, {
+          fit: "cover",
+          position: "centre",
+        })
         .jpeg({ quality: 92 })
         .toBuffer();
-      const finalGeneratedBuffer = hasUnlockedAccess ? processedBuffer : await applyWatermarkForFreeUser(processedBuffer);
+      const finalGeneratedBuffer = hasUnlockedAccess
+        ? processedBuffer
+        : await applyWatermarkForFreeUser(processedBuffer);
       await fs.promises.writeFile(filepath, finalGeneratedBuffer);
       console.log(`[Saved] ${filepath}`);
       const imageUrl = `https://${req.get("host")}/uploads/images/${filename}`;
@@ -887,8 +914,14 @@ app.post(
           shoppingListStatus: "locked",
           timestamp: new Date().toISOString(),
         };
-        const metadataFilePath = path.join(METADATA_DIR, `${path.parse(filename).name}.json`);
-        await fs.promises.writeFile(metadataFilePath, JSON.stringify(metadataPayload, null, 2));
+        const metadataFilePath = path.join(
+          METADATA_DIR,
+          `${path.parse(filename).name}.json`,
+        );
+        await fs.promises.writeFile(
+          metadataFilePath,
+          JSON.stringify(metadataPayload, null, 2),
+        );
 
         res.json({
           resultId: filename,
@@ -913,15 +946,22 @@ app.post(
                     <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Your Result</a>
                 </div>
             </div>`;
-          transporter.sendMail({
-            from: '"SetupAura AI" <' + process.env.EMAIL_USER + '>',
-            to: email.trim(),
-            subject: "Your Design Is Ready + Unlock Shopping List",
-            html: regularEmailBody,
-            attachments: [{ filename: "your-design.jpg", content: finalGeneratedBuffer, cid: "design_image" }]
-          }).catch(err => console.error("[Email Failed]", err.message));
+          transporter
+            .sendMail({
+              from: '"SetupAura AI" <' + process.env.EMAIL_USER + ">",
+              to: email.trim(),
+              subject: "Your Design Is Ready + Unlock Shopping List",
+              html: regularEmailBody,
+              attachments: [
+                {
+                  filename: "your-design.jpg",
+                  content: finalGeneratedBuffer,
+                  cid: "design_image",
+                },
+              ],
+            })
+            .catch((err) => console.error("[Email Failed]", err.message));
         }
-
       } else {
         // PREMIUM USER FLOW: Immediate response, Background Gemini
         res.json({
@@ -933,7 +973,7 @@ app.post(
           tokensRemaining,
           isPremium: true,
           testMode: Boolean(existingLead?.testMode),
-          backgroundProcessing: true // Flag for frontend
+          backgroundProcessing: true, // Flag for frontend
         });
 
         (async () => {
@@ -942,12 +982,21 @@ app.post(
             let retries = 3;
             while (retries > 0 && fullShoppingList.length === 0) {
               try {
-                const maybeShoppingList = await analyzeRoomWithGemini({ mimeType: "image/jpeg", data: generatedBase64, selectedTheme: activeTheme });
-                fullShoppingList = Array.isArray(maybeShoppingList) ? maybeShoppingList : [];
+                const maybeShoppingList = await analyzeRoomWithGemini({
+                  mimeType: "image/jpeg",
+                  data: generatedBase64,
+                  selectedTheme: activeTheme,
+                });
+                fullShoppingList = Array.isArray(maybeShoppingList)
+                  ? maybeShoppingList
+                  : [];
                 if (fullShoppingList.length > 0) break;
-              } catch (shoppingErr) { console.error(`[Gemini Retry] left:`, shoppingErr.message); }
+              } catch (shoppingErr) {
+                console.error(`[Gemini Retry] left:`, shoppingErr.message);
+              }
               retries--;
-              if (retries > 0) await new Promise((res) => setTimeout(res, 2000));
+              if (retries > 0)
+                await new Promise((res) => setTimeout(res, 2000));
             }
 
             const metadataPayload = {
@@ -957,11 +1006,18 @@ app.post(
               originalImageUrl,
               generatedImageUrl: imageUrl,
               shoppingList: fullShoppingList,
-              shoppingListStatus: fullShoppingList.length > 0 ? "ready" : "failed",
+              shoppingListStatus:
+                fullShoppingList.length > 0 ? "ready" : "failed",
               timestamp: new Date().toISOString(),
             };
-            const metadataFilePath = path.join(METADATA_DIR, `${path.parse(filename).name}.json`);
-            await fs.promises.writeFile(metadataFilePath, JSON.stringify(metadataPayload, null, 2));
+            const metadataFilePath = path.join(
+              METADATA_DIR,
+              `${path.parse(filename).name}.json`,
+            );
+            await fs.promises.writeFile(
+              metadataFilePath,
+              JSON.stringify(metadataPayload, null, 2),
+            );
 
             if (process.env.EMAIL_USER && email) {
               const adminEmailBody = `
@@ -975,14 +1031,22 @@ app.post(
                     </div>
                 </div>`;
               await transporter.sendMail({
-                from: '"SetupAura AI" <' + process.env.EMAIL_USER + '>',
+                from: '"SetupAura AI" <' + process.env.EMAIL_USER + ">",
                 to: email.trim(),
                 subject: "Your Full Design + Shopping List",
                 html: adminEmailBody,
-                attachments: [{ filename: "your-design.jpg", content: finalGeneratedBuffer, cid: "design_image" }]
+                attachments: [
+                  {
+                    filename: "your-design.jpg",
+                    content: finalGeneratedBuffer,
+                    cid: "design_image",
+                  },
+                ],
               });
             }
-          } catch (bgErr) { console.error("[BACKGROUND_TASK_ERROR]", bgErr.message); }
+          } catch (bgErr) {
+            console.error("[BACKGROUND_TASK_ERROR]", bgErr.message);
+          }
         })();
       }
     } catch (error) {
@@ -1035,7 +1099,8 @@ app.get("/api/result/:id", async (req, res) => {
       : [];
     const shoppingListUnlocked = Boolean(isUserAdmin || isUserPremium);
     let shoppingListStatus = String(
-      parsed.shoppingListStatus || (fullShoppingList.length > 0 ? "ready" : "pending"),
+      parsed.shoppingListStatus ||
+        (fullShoppingList.length > 0 ? "ready" : "pending"),
     ).toLowerCase();
 
     if (
@@ -1048,7 +1113,10 @@ app.get("/api/result/:id", async (req, res) => {
         metadataFilePath,
         generatedImageUrl: parsed.generatedImageUrl || generatedImageUrl,
       }).catch((regenErr) =>
-        console.error("[RESULT_SHOPPING_REGEN_TRIGGER_ERROR]", regenErr.message),
+        console.error(
+          "[RESULT_SHOPPING_REGEN_TRIGGER_ERROR]",
+          regenErr.message,
+        ),
       );
       if (shoppingListGenerationLocks.has(baseName)) {
         shoppingListStatus = "processing";
@@ -1082,43 +1150,50 @@ app.get("/api/result/:id", async (req, res) => {
   }
 });
 
-app.post("/api/analyze-room", apiLimiter, upload.single("image"), async (req, res) => {
-  const { image, imageUrl, selectedTheme } = req.body || {};
+app.post(
+  "/api/analyze-room",
+  apiLimiter,
+  upload.single("image"),
+  async (req, res) => {
+    const { image, imageUrl, selectedTheme } = req.body || {};
 
-  if (!image && !imageUrl && !req.file) {
-    return res.status(400).json({ error: "image or imageUrl is required" });
-  }
-
-  try {
-    let mimeType;
-    let data;
-
-    if (req.file?.path) {
-      const fileBuffer = await fs.promises.readFile(req.file.path);
-      mimeType = req.file.mimetype || detectMimeType(req.file.originalname || req.file.path);
-      data = fileBuffer.toString("base64");
-    } else {
-      const imageInput = await getImageInputForGemini({
-        image,
-        imageUrl,
-      });
-      mimeType = imageInput.mimeType;
-      data = imageInput.data;
+    if (!image && !imageUrl && !req.file) {
+      return res.status(400).json({ error: "image or imageUrl is required" });
     }
 
-    const items = await analyzeRoomWithGemini({
-      mimeType,
-      data,
-      selectedTheme,
-    });
-    return res.json({ items });
-  } catch (error) {
-    console.error("[ANALYZE_ROOM_ERROR]", error.message);
-    return res
-      .status(500)
-      .json({ error: "ANALYZE_ROOM_FAILED", message: error.message });
-  }
-});
+    try {
+      let mimeType;
+      let data;
+
+      if (req.file?.path) {
+        const fileBuffer = await fs.promises.readFile(req.file.path);
+        mimeType =
+          req.file.mimetype ||
+          detectMimeType(req.file.originalname || req.file.path);
+        data = fileBuffer.toString("base64");
+      } else {
+        const imageInput = await getImageInputForGemini({
+          image,
+          imageUrl,
+        });
+        mimeType = imageInput.mimeType;
+        data = imageInput.data;
+      }
+
+      const items = await analyzeRoomWithGemini({
+        mimeType,
+        data,
+        selectedTheme,
+      });
+      return res.json({ items });
+    } catch (error) {
+      console.error("[ANALYZE_ROOM_ERROR]", error.message);
+      return res
+        .status(500)
+        .json({ error: "ANALYZE_ROOM_FAILED", message: error.message });
+    }
+  },
+);
 
 app.post("/api/submit-review", async (req, res) => {
   const { rating, feedback } = req.body;
@@ -1182,7 +1257,7 @@ const requestOtpHandler = async (req, res) => {
   });
   try {
     await transporter.sendMail({
-      from: '"SetupAura AI" <' + process.env.EMAIL_USER + '>',
+      from: '"SetupAura AI" <' + process.env.EMAIL_USER + ">",
       to: email.trim(),
       subject: "Your SetupAura Verification Code",
       html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0d0d0d;color:#fff;padding:40px;border-radius:12px;border:1px solid #3b0764;">
@@ -1263,11 +1338,18 @@ app.post(
   express.json(),
   async (req, res) => {
     const webhookSecret = req.query.secret;
-    if (process.env.GUMROAD_WEBHOOK_SECRET && webhookSecret !== process.env.GUMROAD_WEBHOOK_SECRET) {
+    if (
+      process.env.GUMROAD_WEBHOOK_SECRET &&
+      webhookSecret !== process.env.GUMROAD_WEBHOOK_SECRET
+    ) {
       return res.status(403).json({ error: "INVALID_WEBHOOK_SECRET" });
     }
 
-    console.log("[Gumroad] Webhook received", { method: req.method, keys: Object.keys(req.body || {}), timestamp: new Date().toISOString() });
+    console.log("[Gumroad] Webhook received", {
+      method: req.method,
+      keys: Object.keys(req.body || {}),
+      timestamp: new Date().toISOString(),
+    });
     const payload = req.body || {};
     const email = String(payload?.email || "")
       .trim()
@@ -1404,7 +1486,10 @@ app.get("/api/user/:email", (req, res) => {
 
 app.get("/api/admin/users", (req, res) => {
   const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
-  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
+  if (
+    !process.env.ADMIN_SECRET ||
+    providedSecret !== process.env.ADMIN_SECRET
+  ) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
 
@@ -1414,7 +1499,10 @@ app.get("/api/admin/users", (req, res) => {
 
 app.post("/api/admin/update-tokens", (req, res) => {
   const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
-  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
+  if (
+    !process.env.ADMIN_SECRET ||
+    providedSecret !== process.env.ADMIN_SECRET
+  ) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
 
@@ -1450,7 +1538,10 @@ app.post("/api/admin/update-tokens", (req, res) => {
 
 app.post("/api/admin/toggle-premium", (req, res) => {
   const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
-  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
+  if (
+    !process.env.ADMIN_SECRET ||
+    providedSecret !== process.env.ADMIN_SECRET
+  ) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
   const { targetEmail, isPremium } = req.body;
@@ -1475,7 +1566,10 @@ app.post("/api/admin/toggle-premium", (req, res) => {
 app.post("/api/admin-upgrade", (req, res) => {
   const { email, tokensToAdd } = req.body || {};
   const providedSecret = req.headers["admin-secret"] || req.body?.adminSecret;
-  if (!process.env.ADMIN_SECRET || providedSecret !== process.env.ADMIN_SECRET) {
+  if (
+    !process.env.ADMIN_SECRET ||
+    providedSecret !== process.env.ADMIN_SECRET
+  ) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
   const normalizedEmail = String(email || "")
