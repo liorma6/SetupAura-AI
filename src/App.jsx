@@ -226,6 +226,7 @@ const InnerApp = () => {
 
   const handleVerifyOtp = async () => {
     const code = otpDigits.join("");
+
     if (code.length < 6) {
       setAuthError("Please enter the full 6-digit code.");
       return;
@@ -234,42 +235,51 @@ const InnerApp = () => {
     setAuthError("");
     try {
       const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: pendingEmail, code }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || data?.error || "Verification failed");
-      
-      const normalizedEmail = (data?.email || pendingEmail || "").trim().toLowerCase();
-      
+      if (!res.ok)
+        throw new Error(data?.message || data?.error || "Verification failed");
+      if (window.fbq) {
+        window.fbq("track", "Lead");
+      }
+      posthog.capture("Lead");
+      const normalizedEmail = (data?.email || pendingEmail || "")
+        .trim()
+        .toLowerCase();
+
       // 1. Update global context first
       setVerifiedEmail(normalizedEmail);
       setTokensRemaining(Math.max(0, Number(data?.tokensRemaining) || 0));
       setIsPremium(Boolean(data?.isPremium));
-      try { localStorage.setItem("setupaura_email", normalizedEmail); } catch {}
+      try {
+        localStorage.setItem("setupaura_email", normalizedEmail);
+      } catch {}
 
       // 2. Safely close the modal
       closeSignIn();
 
       // 3. Route the user after a tiny delay to ensure smooth transition
       setTimeout(() => {
-        if (normalizedEmail === 'liorma6@gmail.com') {
+        if (normalizedEmail === "liorma6@gmail.com") {
           const secret = window.prompt("Enter Admin Secret:");
           if (secret) {
             localStorage.setItem("setupaura_admin_secret", secret);
-            setScreen('admin');
+            setScreen("admin");
           } else {
-            setScreen('scan'); // fallback if canceled
+            setScreen("scan"); // fallback if canceled
           }
-        } else if (screen === 'welcome') {
+        } else if (screen === "welcome") {
           // Auto-redirect normal users to scan screen for better UX
-          setScreen('scan');
+          setScreen("scan");
         }
       }, 100);
-    } catch (err) { 
-      setAuthError(err.message || "Verification failed"); 
-    } finally { 
-      setVerifyingOtp(false); 
+    } catch (err) {
+      setAuthError(err.message || "Verification failed");
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
