@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Sparkles, Mail, ShieldCheck, RotateCcw } from "lucide-react";
+import {
+  Sparkles,
+  Mail,
+  ShieldCheck,
+  RotateCcw,
+  CheckCircle,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 const API_URL =
@@ -473,26 +479,17 @@ export const RecommendationsScreen = () => {
   if (showPremiumSuccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 animate-in zoom-in duration-500">
-        <div className="relative w-24 h-24 mb-8">
-          <div className="absolute inset-0 bg-purple-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
-          <div className="relative w-full h-full bg-[#0a0a0a] border border-purple-500/50 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.4)]">
-            <Sparkles className="w-12 h-12 text-purple-400" />
-          </div>
+        <div className="w-24 h-24 mb-8 flex items-center justify-center">
+          <CheckCircle className="w-16 h-16 text-green-500" />
         </div>
 
         <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-4 tracking-tight">
-          Crafting Your Vision...
+          Success! Design Approved
         </h2>
 
         <p className="text-gray-300 text-base max-w-md mx-auto leading-relaxed mb-10">
-          Our AI is meticulously designing your high-end setup and curating an
-          exact-match shopping list.
-          <br />
-          <br />
-          <span className="text-purple-300 font-semibold">
-            Your masterpiece will be delivered directly to your inbox shortly.
-            You may now safely leave this page.
-          </span>
+          It will take a few moments and will be delivered directly to your
+          email. In the meantime, you can safely return to the home page.
         </p>
 
         <button
