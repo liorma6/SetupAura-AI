@@ -429,8 +429,12 @@ export const RecommendationsScreen = () => {
         setOtpError(data.message || "Verification failed");
         return;
       }
-      if (window.fbq) window.fbq("track", "Lead");
-      if (window.posthog) window.posthog.capture("Lead");
+      if (typeof window !== "undefined" && window.fbq) {
+        window.fbq("track", "Lead");
+      }
+      if (typeof window !== "undefined" && window.posthog) {
+        window.posthog.capture("Lead");
+      }
 
       const verified = pendingEmail.trim();
       try {
