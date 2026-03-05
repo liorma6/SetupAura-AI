@@ -170,7 +170,8 @@ export const RecommendationsScreen = () => {
         }
 
         if (isUserPremium) {
-          const response = await fetch(`${API_URL}/api/generate-design`, {
+          setFlow("loading"); // Show short validation state
+          const requestPromise = fetch(`${API_URL}/api/generate-design`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -179,25 +180,54 @@ export const RecommendationsScreen = () => {
               theme: selectedTheme || DEFAULT_THEME,
             }),
           });
-          const responseData = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            const errorData = responseData || {};
-            setError(
-              errorData.message || errorData.error || "Generation failed",
-            );
+          // Wait 2.5 seconds for any fast safety errors
+          const timeoutPromise = new Promise((resolve) =>
+            setTimeout(() => resolve("TIMEOUT"), 2500),
+          );
+          try {
+            const result = await Promise.race([requestPromise, timeoutPromise]);
+            if (result === "TIMEOUT") {
+              // Safety check passed (no fast error). It's generating!
+              setShowPremiumSuccess(true);
+
+              // Let it finish in the background to update tokens silently
+              requestPromise
+                .then(async (res) => {
+                  if (res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    if (typeof data.tokensRemaining === "number") {
+                      setTokensRemaining(data.tokensRemaining);
+                    }
+                  }
+                })
+                .catch(console.error);
+
+              return;
+            }
+            // If it resolved before timeout (fast error like safety violation)
+            const response = result;
+            const responseData = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+              setError(
+                responseData.message ||
+                  responseData.error ||
+                  "Generation rejected. Please try another image.",
+              );
+              setFlow("email");
+              return;
+            }
+            // Fast success fallback
+            if (typeof responseData.tokensRemaining === "number") {
+              setTokensRemaining(responseData.tokensRemaining);
+            }
+            setShowPremiumSuccess(true);
+            return;
+          } catch (err) {
+            setError("Connection error. Please try again.");
             setFlow("email");
             return;
           }
-          if (responseData?.imageUrl) {
-            setGeneratedImage(responseData.imageUrl);
-          }
-          if (typeof responseData.tokensRemaining === "number") {
-            setTokensRemaining(responseData.tokensRemaining);
-          }
-          setIsPremium(Boolean(responseData?.isPremium ?? true));
-          markTrialUsed();
-          setShowPremiumSuccess(true);
-          return;
         }
 
         setFlow("loading");
