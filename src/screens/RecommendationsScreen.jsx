@@ -429,6 +429,7 @@ export const RecommendationsScreen = () => {
         setOtpError(data.message || "Verification failed");
         return;
       }
+      setOtpLoading(false);
       if (typeof window !== "undefined" && window.fbq) {
         window.fbq("track", "Lead");
       }
@@ -445,6 +446,7 @@ export const RecommendationsScreen = () => {
         setTokensRemaining(data.tokensRemaining);
       }
       setIsPremium(Boolean(data?.isPremium));
+      setFlow("loading");
       await generateForEmail(verified);
     } catch (error) {
       console.error("DEBUG: Full Error Object:", error);
