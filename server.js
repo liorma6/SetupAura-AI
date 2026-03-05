@@ -223,11 +223,11 @@ const buildFrontendUrl = (targetPath = "/", query = {}) => {
 };
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.resend.com",
-  port: process.env.EMAIL_PORT || 465,
+  host: "smtp.resend.com",
+  port: 465,
   secure: true,
   auth: {
-    user: process.env.EMAIL_USER,
+    user: "resend",
     pass: process.env.EMAIL_PASS,
   },
 });
@@ -863,13 +863,11 @@ app.post(
         console.error(
           "[IMAGE_GENERATION_ERROR] No URL returned, possibly rejected by safety system.",
         );
-        return res
-          .status(400)
-          .json({
-            error: "SAFETY_SYSTEM_REJECTED",
-            message:
-              "Your request was rejected by the safety system. Please try a different image.",
-          });
+        return res.status(400).json({
+          error: "SAFETY_SYSTEM_REJECTED",
+          message:
+            "Your request was rejected by the safety system. Please try a different image.",
+        });
       }
 
       const generatedBase64 = aiResponse.data[0].b64_json;
@@ -948,7 +946,7 @@ app.post(
             </div>`;
           transporter
             .sendMail({
-              from: '"SetupAura AI" <' + process.env.EMAIL_USER + ">",
+              from: '"SetupAura AI" <support@setupaura.online>',
               to: email.trim(),
               subject: "Your Design Is Ready + Unlock Shopping List",
               html: regularEmailBody,
@@ -1031,7 +1029,7 @@ app.post(
                     </div>
                 </div>`;
               await transporter.sendMail({
-                from: '"SetupAura AI" <' + process.env.EMAIL_USER + ">",
+                from: '"SetupAura AI" <support@setupaura.online>',
                 to: email.trim(),
                 subject: "Your Full Design + Shopping List",
                 html: adminEmailBody,
@@ -1257,7 +1255,7 @@ const requestOtpHandler = async (req, res) => {
   });
   try {
     await transporter.sendMail({
-      from: '"SetupAura AI" <' + process.env.EMAIL_USER + ">",
+      from: '"SetupAura AI" <support@setupaura.online>',
       to: email.trim(),
       subject: "Your SetupAura Verification Code",
       html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0d0d0d;color:#fff;padding:40px;border-radius:12px;border:1px solid #3b0764;">
