@@ -174,6 +174,8 @@ export const WelcomeScreen = ({ onStart }) => {
       if (!res.ok) {
         throw new Error(data?.message || data?.error || "Verification failed");
       }
+      if (window.fbq) window.fbq("track", "Lead");
+      if (window.posthog) window.posthog.capture("Lead");
 
       const normalizedEmail = (data?.email || pendingEmail || "")
         .trim()
