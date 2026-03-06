@@ -157,8 +157,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [isAgreed, setIsAgreed] = useState(false);
 
-  const cameraInputRef = useRef(null);
-  const uploadInputRef = useRef(null);
   const scanTimerRef = useRef(null);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -198,16 +196,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
       );
       e.target.value = "";
     }
-  };
-
-  const handleCameraClick = (e) => {
-    e.preventDefault();
-    setTimeout(() => cameraInputRef.current?.click(), 0);
-  };
-
-  const handleUploadClick = (e) => {
-    e.preventDefault();
-    setTimeout(() => uploadInputRef.current?.click(), 0);
   };
 
   const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
@@ -348,9 +336,14 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
             <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border border-dashed border-white/20 transition-colors hover:border-primary/30">
               {!preview ? (
                 <div
-                  onClick={handleUploadClick}
-                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
+                  className="w-full h-full relative overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
                 >
+                  <input
+                    type="file"
+                    onChange={handleFileSelect}
+                    accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                  />
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400 transition-colors" />
                   </div>
@@ -376,22 +369,27 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
           <div className="w-full max-w-md mx-auto pb-10 pt-4 px-6 shrink-0">
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <button
-                type="button"
-                onClick={handleCameraClick}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 hover:bg-white/5 transition-colors cursor-pointer w-full"
-              >
+              <div className="relative overflow-hidden flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 hover:bg-white/5 transition-colors cursor-pointer w-full">
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                  capture="environment"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                />
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleUploadClick}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 hover:bg-white/5 transition-colors cursor-pointer w-full"
-              >
+              </div>
+              <div className="relative overflow-hidden flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 hover:bg-white/5 transition-colors cursor-pointer w-full">
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                />
                 <ImageIcon className="w-4 h-4" />
                 <span>Upload Image</span>
-              </button>
+              </div>
             </div>
 
             <div className="flex items-start gap-2 mb-4 px-1">
@@ -446,23 +444,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         </>
       )}
 
-      <input
-        type="file"
-        id="camera-input"
-        ref={cameraInputRef}
-        onChange={handleFileSelect}
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-      />
-      <input
-        type="file"
-        id="upload-input"
-        ref={uploadInputRef}
-        onChange={handleFileSelect}
-        accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
-        className="hidden"
-      />
     </div>
   );
 };
