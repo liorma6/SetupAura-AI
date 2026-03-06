@@ -342,9 +342,9 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               {!preview ? (
                 <div
                   onClick={triggerUpload}
-                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer active:bg-white/5 transition-colors"
+                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors"
                 >
-                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 active:scale-95 transition-all duration-300">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-300 font-medium">Tap to upload image</p>
@@ -372,7 +372,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onClick={triggerCamera}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 active:bg-white/5 transition-colors w-full"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full"
               >
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
@@ -380,7 +380,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onClick={triggerUpload}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 active:bg-white/5 transition-colors w-full"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full"
               >
                 <ImageIcon className="w-4 h-4" />
                 <span>Upload Image</span>
