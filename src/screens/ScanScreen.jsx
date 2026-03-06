@@ -368,8 +368,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                 <button
                   type="button"
                   onPointerDown={prepPickerGesture}
-                  onTouchStart={prepPickerGesture}
-                  onClick={() => triggerFilePicker(uploadInputRef)}
+                  onClick={(e) => {
+                    e.currentTarget.blur?.();
+                    triggerFilePicker(uploadInputRef);
+                  }}
                   style={{
                     WebkitTapHighlightColor: "transparent",
                     WebkitTouchCallout: "none",
@@ -377,7 +379,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                     touchAction: "manipulation",
                     outline: "none",
                   }}
-                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors select-none outline-none focus:outline-none focus-visible:outline-none appearance-none bg-transparent border-0 p-0 m-0"
+                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors select-none outline-none active:outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 appearance-none bg-transparent border-0 p-0 m-0"
                 >
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400" />
@@ -407,8 +409,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onPointerDown={prepPickerGesture}
-                onTouchStart={prepPickerGesture}
-                onClick={() => triggerFilePicker(cameraInputRef)}
+                onClick={(e) => {
+                  e.currentTarget.blur?.();
+                  triggerFilePicker(cameraInputRef);
+                }}
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   WebkitTouchCallout: "none",
@@ -416,7 +420,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                   touchAction: "manipulation",
                   outline: "none",
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none focus:outline-none focus-visible:outline-none"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none active:outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
               >
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
@@ -424,8 +428,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onPointerDown={prepPickerGesture}
-                onTouchStart={prepPickerGesture}
-                onClick={() => triggerFilePicker(uploadInputRef)}
+                onClick={(e) => {
+                  e.currentTarget.blur?.();
+                  triggerFilePicker(uploadInputRef);
+                }}
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   WebkitTouchCallout: "none",
@@ -433,7 +439,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                   touchAction: "manipulation",
                   outline: "none",
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none focus:outline-none focus-visible:outline-none"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none active:outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
               >
                 <ImageIcon className="w-4 h-4" />
                 <span>Upload Image</span>
