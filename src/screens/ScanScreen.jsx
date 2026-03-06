@@ -339,10 +339,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                   htmlFor="upload-input"
                   className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
                 >
-                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
-                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-primary transition-colors" />
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300 pointer-events-none">
+                    <Upload className="w-8 h-8 text-gray-400 transition-colors pointer-events-none" />
                   </div>
-                  <p className="text-gray-300 font-medium">
+                  <p className="text-gray-300 font-medium pointer-events-none">
                     Tap to upload image
                   </p>
                 </label>
@@ -370,15 +370,15 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                 htmlFor="camera-input"
                 className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 hover:bg-white/5 transition-colors cursor-pointer w-full"
               >
-                <Camera className="w-4 h-4" />
-                Take Photo
+                <Camera className="w-4 h-4 pointer-events-none" />
+                <span className="pointer-events-none">Take Photo</span>
               </label>
               <label
                 htmlFor="upload-input"
                 className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 hover:bg-white/5 transition-colors cursor-pointer w-full"
               >
-                <ImageIcon className="w-4 h-4" />
-                Upload Image
+                <ImageIcon className="w-4 h-4 pointer-events-none" />
+                <span className="pointer-events-none">Upload Image</span>
               </label>
             </div>
 
