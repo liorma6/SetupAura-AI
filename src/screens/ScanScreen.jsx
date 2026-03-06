@@ -157,6 +157,8 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [isAgreed, setIsAgreed] = useState(false);
 
+  const cameraInputRef = useRef(null);
+  const uploadInputRef = useRef(null);
   const scanTimerRef = useRef(null);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -164,39 +166,65 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   }, []);
 
   const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const input = e.target;
+    const file = input.files?.[0];
+
+    if (!file) {
+      input.value = "";
+      return;
+    }
     setFileError("");
-    if (!isSupportedImage(file)) {
-      setFileError("Unsupported format. Please upload JPG, PNG, or WEBP.");
-      e.target.value = "";
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError("File too large. Maximum size is 10MB.");
-      e.target.value = "";
-      return;
-    }
-    if (isHeicOrHeif(file)) {
-      setFileError(
-        "HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.",
-      );
-      e.target.value = "";
-      return;
-    }
+
     try {
-      const { dataUrl, width, height } = await correctImageOrientation(file);
-      setAspectRatio(height > width ? 9 / 16 : 16 / 9);
-      setPreview(dataUrl);
-      setShowCropper(true);
-    } catch (error) {
-      console.error("DEBUG: FileReader Error:", error);
-      setFileError(
-        "Could not read this image file. Please use a clear JPG, PNG, or WEBP image.",
-      );
-      e.target.value = "";
+      if (!isSupportedImage(file)) {
+        setFileError("Unsupported format. Please upload JPG, PNG, or WEBP.");
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError("File too large. Maximum size is 10MB.");
+        return;
+      }
+      if (isHeicOrHeif(file)) {
+        setFileError(
+          "HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.",
+        );
+        return;
+      }
+      try {
+        const { dataUrl, width, height } = await correctImageOrientation(file);
+        setAspectRatio(height > width ? 9 / 16 : 16 / 9);
+        setPreview(dataUrl);
+        setShowCropper(true);
+      } catch (error) {
+        console.error("DEBUG: FileReader Error:", error);
+        setFileError(
+          "Could not read this image file. Please use a clear JPG, PNG, or WEBP image.",
+        );
+      }
+    } finally {
+      // CRITICAL FOR iOS: Always reset the input and remove focus
+      input.value = "";
+      input.blur?.();
     }
   };
+
+  const openCameraPicker = useCallback(() => {
+    setFileError("");
+    document.activeElement?.blur?.();
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+      cameraInputRef.current.click();
+    }
+  }, []);
+
+  const openLibraryPicker = useCallback(() => {
+    setFileError("");
+    document.activeElement?.blur?.();
+    if (uploadInputRef.current) {
+      uploadInputRef.current.value = "";
+      uploadInputRef.current.click();
+    }
+  }, []);
 
   const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
     const image = new Image();
@@ -336,14 +364,13 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
             <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden border border-dashed border-white/20">
               {!preview ? (
                 <div
-                  className="w-full h-full flex flex-col items-center justify-center relative cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent]"
+                  onClick={openLibraryPicker}
+                  style={{
+                    WebkitTapHighlightColor: "transparent",
+                    touchAction: "manipulation",
+                  }}
+                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors"
                 >
-                  <input
-                    type="file"
-                    onChange={handleFileSelect}
-                    accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50 [-webkit-tap-highlight-color:transparent]"
-                  />
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400" />
                   </div>
@@ -369,27 +396,30 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
           <div className="w-full max-w-md mx-auto pb-10 pt-4 px-6 shrink-0">
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="relative overflow-hidden flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer [-webkit-tap-highlight-color:transparent]">
-                <input
-                  type="file"
-                  onChange={handleFileSelect}
-                  accept="image/*"
-                  capture="environment"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50 [-webkit-tap-highlight-color:transparent]"
-                />
+              <button
+                type="button"
+                onClick={openCameraPicker}
+                style={{
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer"
+              >
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
-              </div>
-              <div className="relative overflow-hidden flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer [-webkit-tap-highlight-color:transparent]">
-                <input
-                  type="file"
-                  onChange={handleFileSelect}
-                  accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50 [-webkit-tap-highlight-color:transparent]"
-                />
+              </button>
+              <button
+                type="button"
+                onClick={openLibraryPicker}
+                style={{
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer"
+              >
                 <ImageIcon className="w-4 h-4" />
                 <span>Upload Image</span>
-              </div>
+              </button>
             </div>
 
             <div className="flex items-start gap-2 mb-4 px-1">
@@ -443,6 +473,22 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
           </div>
         </>
       )}
+
+      <input
+        type="file"
+        ref={cameraInputRef}
+        onChange={handleFileSelect}
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={uploadInputRef}
+        onChange={handleFileSelect}
+        accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
+        className="hidden"
+      />
 
     </div>
   );
