@@ -1,9 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-
 import Cropper from "react-easy-crop";
-
 import { Button } from "../components/ui/Button";
-
 import {
   Camera,
   Image as ImageIcon,
@@ -15,36 +12,25 @@ import {
   RotateCw,
   Check,
 } from "lucide-react";
-
 import { useApp } from "../context/AppContext";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const SUPPORTED_MIME_TYPES = new Set([
   "image/jpeg",
-
   "image/jpg",
-
   "image/png",
-
   "image/webp",
-
   "image/heic",
-
   "image/heif",
 ]);
 
 const SUPPORTED_EXTENSIONS = new Set([
   "jpg",
-
   "jpeg",
-
   "png",
-
   "webp",
-
   "heic",
-
   "heif",
 ]);
 
@@ -52,7 +38,6 @@ const NON_CONVERTIBLE_EXTENSIONS = new Set(["heic", "heif"]);
 
 const getExtension = (name = "") => {
   const parts = String(name).toLowerCase().split(".");
-
   return parts.length > 1 ? parts.pop() : "";
 };
 
@@ -70,7 +55,6 @@ const isSupportedImage = (file) => {
 
 const isHeicOrHeif = (file) => {
   const ext = getExtension(file?.name || "");
-
   const type = String(file?.type || "").toLowerCase();
 
   return (
@@ -89,14 +73,12 @@ const readExifOrientation = (buffer) => {
 
   while (offset + 4 < view.byteLength) {
     const marker = view.getUint16(offset, false);
-
     const segLen = view.getUint16(offset + 2, false);
 
     if (marker === 0xffe1) {
       if (view.getUint32(offset + 4, false) !== 0x45786966) return 1;
 
       const little = view.getUint16(offset + 10, false) === 0x4949;
-
       const tagCount = view.getUint16(offset + 14, little);
 
       for (let i = 0; i < tagCount; i++) {
@@ -124,36 +106,27 @@ const correctImageOrientation = (file) =>
 
     arrayReader.onerror = (error) => {
       console.error("DEBUG: FileReader Error:", error);
-
       reject(error);
     };
 
     arrayReader.onload = (e) => {
       const orientation = readExifOrientation(e.target.result);
-
       const blobUrl = URL.createObjectURL(file);
-
       const img = new Image();
 
       img.onerror = (error) => {
         console.error("DEBUG: FileReader Error:", error);
-
         URL.revokeObjectURL(blobUrl);
-
         reject(error);
       };
 
       img.onload = () => {
         const swapped = orientation >= 5 && orientation <= 8;
-
         const naturalW = swapped ? img.height : img.width;
-
         const naturalH = swapped ? img.width : img.height;
 
         const canvas = document.createElement("canvas");
-
         canvas.width = naturalW;
-
         canvas.height = naturalH;
 
         const ctx = canvas.getContext("2d");
@@ -161,52 +134,35 @@ const correctImageOrientation = (file) =>
         switch (orientation) {
           case 2:
             ctx.transform(-1, 0, 0, 1, img.width, 0);
-
             break;
-
           case 3:
             ctx.transform(-1, 0, 0, -1, img.width, img.height);
-
             break;
-
           case 4:
             ctx.transform(1, 0, 0, -1, 0, img.height);
-
             break;
-
           case 5:
             ctx.transform(0, 1, 1, 0, 0, 0);
-
             break;
-
           case 6:
             ctx.transform(0, 1, -1, 0, img.height, 0);
-
             break;
-
           case 7:
             ctx.transform(0, -1, -1, 0, img.height, img.width);
-
             break;
-
           case 8:
             ctx.transform(0, -1, 1, 0, 0, img.width);
-
             break;
-
           default:
             break;
         }
 
         ctx.drawImage(img, 0, 0);
-
         URL.revokeObjectURL(blobUrl);
 
         resolve({
           dataUrl: canvas.toDataURL("image/jpeg", 0.92),
-
           width: naturalW,
-
           height: naturalH,
         });
       };
@@ -221,94 +177,113 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const { setScreen, setUploadedImage } = useApp();
 
   const [isScanning, setIsScanning] = useState(false);
-
   const [preview, setPreview] = useState(null);
-
   const [crop, setCrop] = useState({ x: 0, y: 0 });
-
   const [zoom, setZoom] = useState(1);
-
   const [rotation, setRotation] = useState(0);
-
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-
   const [showCropper, setShowCropper] = useState(false);
-
   const [fileError, setFileError] = useState("");
-
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
-
   const [isAgreed, setIsAgreed] = useState(false);
 
   const cameraInputRef = useRef(null);
-
   const uploadInputRef = useRef(null);
-
   const scanTimerRef = useRef(null);
+
+  const clearPickerFocusState = useCallback(() => {
+    document.activeElement?.blur?.();
+    cameraInputRef.current?.blur?.();
+    uploadInputRef.current?.blur?.();
+  }, []);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
   const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
+    const input = e.target;
+    const file = input.files?.[0];
 
-    if (!file) return;
+    if (!file) {
+      input.value = "";
+      clearPickerFocusState();
+      return;
+    }
 
     setFileError("");
 
-    if (!isSupportedImage(file)) {
-      setFileError("Unsupported format. Please upload JPG, PNG, or WEBP.");
-
-      e.target.value = "";
-
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError("File too large. Maximum size is 10MB.");
-
-      e.target.value = "";
-
-      return;
-    }
-
-    if (isHeicOrHeif(file)) {
-      setFileError(
-        "HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.",
-      );
-
-      e.target.value = "";
-
-      return;
-    }
-
     try {
-      const { dataUrl, width, height } = await correctImageOrientation(file);
+      if (!isSupportedImage(file)) {
+        setFileError("Unsupported format. Please upload JPG, PNG, or WEBP.");
+        return;
+      }
 
-      setAspectRatio(height > width ? 9 / 16 : 16 / 9);
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError("File too large. Maximum size is 10MB.");
+        return;
+      }
 
-      setPreview(dataUrl);
+      if (isHeicOrHeif(file)) {
+        setFileError(
+          "HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.",
+        );
+        return;
+      }
 
-      setShowCropper(true);
-    } catch (error) {
-      console.error("DEBUG: FileReader Error:", error);
+      try {
+        const { dataUrl, width, height } = await correctImageOrientation(file);
 
-      setFileError(
-        "Could not read this image file. Please use a clear JPG, PNG, or WEBP image.",
-      );
+        setAspectRatio(height > width ? 9 / 16 : 16 / 9);
+        setPreview(dataUrl);
+        setShowCropper(true);
+      } catch (error) {
+        console.error("DEBUG: FileReader Error:", error);
 
-      e.target.value = "";
+        setFileError(
+          "Could not read this image file. Please use a clear JPG, PNG, or WEBP image.",
+        );
+      }
+    } finally {
+      input.value = "";
+      input.blur?.();
+      clearPickerFocusState();
+
+      requestAnimationFrame(() => {
+        clearPickerFocusState();
+      });
     }
   };
 
-  const triggerCameraInput = () => cameraInputRef.current?.click();
+  const openFileInput = useCallback(
+    (inputRef) => {
+      const input = inputRef.current;
+      if (!input) return;
 
-  const triggerUploadInput = () => uploadInputRef.current?.click();
+      clearPickerFocusState();
+      input.value = "";
+
+      requestAnimationFrame(() => {
+        input.click();
+
+        requestAnimationFrame(() => {
+          clearPickerFocusState();
+        });
+      });
+    },
+    [clearPickerFocusState],
+  );
+
+  const triggerCameraInput = useCallback(() => {
+    openFileInput(cameraInputRef);
+  }, [openFileInput]);
+
+  const triggerUploadInput = useCallback(() => {
+    openFileInput(uploadInputRef);
+  }, [openFileInput]);
 
   const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
     const image = new Image();
-
     image.src = imageSrc;
 
     await new Promise((resolve) => {
@@ -316,45 +291,32 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
     });
 
     const canvas = document.createElement("canvas");
-
     const ctx = canvas.getContext("2d");
-
     const maxSize = Math.max(image.width, image.height);
-
     const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
 
     canvas.width = safeArea;
-
     canvas.height = safeArea;
 
     ctx.translate(safeArea / 2, safeArea / 2);
-
     ctx.rotate((rotation * Math.PI) / 180);
-
     ctx.translate(-safeArea / 2, -safeArea / 2);
 
     ctx.drawImage(
       image,
-
       safeArea / 2 - image.width * 0.5,
-
       safeArea / 2 - image.height * 0.5,
     );
 
     const data = ctx.getImageData(
       safeArea / 2 - image.width * 0.5 + pixelCrop.x,
-
       safeArea / 2 - image.height * 0.5 + pixelCrop.y,
-
       pixelCrop.width,
-
       pixelCrop.height,
     );
 
     canvas.width = pixelCrop.width;
-
     canvas.height = pixelCrop.height;
-
     ctx.putImageData(data, 0, 0);
 
     return new Promise((resolve) => {
@@ -368,14 +330,11 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
     try {
       const croppedImage = await getCroppedImg(
         preview,
-
         croppedAreaPixels,
-
         rotation,
       );
 
       setUploadedImage(croppedImage);
-
       setShowCropper(false);
     } catch (e) {
       console.error(e);
@@ -393,10 +352,25 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   };
 
   useEffect(() => {
+    const handleWindowFocus = () => {
+      clearPickerFocusState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        clearPickerFocusState();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [clearPickerFocusState]);
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
@@ -474,6 +448,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               {!preview ? (
                 <div
                   onClick={triggerUploadInput}
+                  style={{
+                    WebkitTapHighlightColor: "transparent",
+                    touchAction: "manipulation",
+                  }}
                   className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
                 >
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
@@ -505,15 +483,35 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
           <div className="w-full max-w-md mx-auto pb-10 pt-4 px-6 shrink-0">
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <Button variant="outline" size="sm" onClick={triggerCameraInput}>
-                <Camera className="w-4 h-4" />
-                Take Photo
-              </Button>
+              <button
+                type="button"
+                onClick={triggerCameraInput}
+                style={{
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
+                }}
+                className="w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wider relative overflow-hidden font-display bg-transparent border-2 border-primary text-primary shadow-[0_0_10px_rgba(191,0,255,0.3)] hover:bg-primary/10 hover:shadow-neon-purple"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  <Camera className="w-4 h-4" />
+                  Take Photo
+                </span>
+              </button>
 
-              <Button variant="outline" size="sm" onClick={triggerUploadInput}>
-                <ImageIcon className="w-4 h-4" />
-                Upload Image
-              </Button>
+              <button
+                type="button"
+                onClick={triggerUploadInput}
+                style={{
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
+                }}
+                className="w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wider relative overflow-hidden font-display bg-transparent border-2 border-primary text-primary shadow-[0_0_10px_rgba(191,0,255,0.3)] hover:bg-primary/10 hover:shadow-neon-purple"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Upload Image
+                </span>
+              </button>
             </div>
 
             <div className="flex items-start gap-2 mb-4 px-1">
@@ -575,7 +573,18 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         onChange={handleFileSelect}
         accept="image/*"
         capture="environment"
-        className="hidden"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          clipPath: "inset(50%)",
+          border: 0,
+          whiteSpace: "nowrap",
+        }}
       />
 
       <input
@@ -583,7 +592,18 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         ref={uploadInputRef}
         onChange={handleFileSelect}
         accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
-        className="hidden"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          clipPath: "inset(50%)",
+          border: 0,
+          whiteSpace: "nowrap",
+        }}
       />
     </div>
   );
