@@ -4,33 +4,39 @@ const tiers = [
     {
         id: 'starter',
         name: 'Starter',
+        originalPrice: '$9.99',
         price: '$4.99',
         subtitle: '10 design tokens',
         features: ['10 Design Tokens', 'Ultimate Curated Shopping List', 'No Watermarks', 'All Design Genres Unlocked'],
         color: 'from-cyan-500 to-blue-600',
         popular: false,
+        cta: 'Get 10 New Designs',
         tokens: 10,
         checkoutUrl: 'https://liorma.gumroad.com/l/setupaura-starter',
     },
     {
         id: 'pro',
         name: 'Pro',
+        originalPrice: '$29.99',
         price: '$14.99',
         subtitle: '40 design tokens',
         features: ['40 Design Tokens', 'Ultimate Curated Shopping List', 'No Watermarks', 'All Design Genres Unlocked'],
         color: 'from-fuchsia-500 to-purple-600',
         popular: true,
+        cta: 'Unlock Full Experience',
         tokens: 40,
         checkoutUrl: 'https://liorma.gumroad.com/l/setupaura-pro',
     },
     {
         id: 'elite',
         name: 'Elite',
+        originalPrice: '$59.99',
         price: '$29.99',
         subtitle: '100 design tokens',
         features: ['100 Design Tokens', 'Ultimate Curated Shopping List', 'No Watermarks', 'All Design Genres Unlocked'],
         color: 'from-amber-400 to-orange-600',
         popular: false,
+        cta: 'Unlock Full Experience',
         tokens: 100,
         checkoutUrl: 'https://liorma.gumroad.com/l/setupaura-elite',
     },
@@ -62,6 +68,11 @@ export const PricingScreen = () => {
                 <header className="text-center mb-8">
                     <p className="text-xs tracking-[0.25em] uppercase text-purple-300/80 font-bold">Upgrade</p>
                     <h1 className="text-3xl font-display font-extrabold mt-2">Choose Your Plan</h1>
+                    <div className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-1.5 bg-gradient-to-r from-fuchsia-500/25 via-orange-400/20 to-amber-300/25 border border-fuchsia-300/30">
+                        <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-orange-300 to-amber-200">
+                            🔥 Limited Time Launch Offer - 50% OFF!
+                        </span>
+                    </div>
                     <p className="text-gray-400 mt-2 text-sm">Unlock premium themes, shopping links, and more design generations.</p>
                 </header>
 
@@ -90,6 +101,7 @@ export const PricingScreen = () => {
                                         <p className="text-gray-400 text-xs mt-2">{tier.subtitle}</p>
                                     </div>
                                     <div className="text-right">
+                                        <p className="text-xs text-gray-500 line-through">{tier.originalPrice}</p>
                                         <p className={`text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r ${tier.color}`}>{tier.price}</p>
                                         <p className="text-[11px] text-gray-500">one-time</p>
                                     </div>
@@ -104,7 +116,7 @@ export const PricingScreen = () => {
                                     ))}
                                 </ul>
 
-                                <button onClick={() => handleCheckoutClick(tier)} className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}>Upgrade Now</button>
+                                <button onClick={() => handleCheckoutClick(tier)} className={`mt-5 block w-full text-center py-3 rounded-xl font-bold tracking-wide bg-gradient-to-r ${tier.color} hover:scale-[1.01] active:scale-95 transition-transform`}>{tier.cta}</button>
                             </div>
                         );
                     })}
