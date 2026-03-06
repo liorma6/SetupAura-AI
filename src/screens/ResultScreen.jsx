@@ -332,12 +332,34 @@ export const ResultScreen = () => {
     if (!hasUnlockedAccess) setScreen("pricing");
   };
 
-  const handleAnotherDesign = () => {
+  const handleAnotherDesign = async () => {
+    // Secure server-side verification
+    if (verifiedEmail) {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/user/${encodeURIComponent(verifiedEmail)}`,
+        );
+        if (res.ok) {
+          const userData = await res.json();
+
+          // The ONLY rule: Do you have tokens left?
+          if (Number(userData.tokensRemaining || 0) > 0) {
+            setScreen("welcome");
+          } else {
+            setScreen("pricing");
+          }
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to verify user tokens:", e);
+      }
+    }
+    // Fallback to local state if fetch fails or email is missing
     if (Number(tokensRemaining || 0) > 0) {
       setScreen("welcome");
-      return;
+    } else {
+      setScreen("pricing");
     }
-    setScreen("pricing");
   };
 
   const aspectClass =
