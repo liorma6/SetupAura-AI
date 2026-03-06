@@ -439,10 +439,10 @@ export const ResultScreen = () => {
 
       <button
         onClick={handleAnotherDesign}
-        className="w-full max-w-md py-3 mb-6 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/15 border border-white/20 transition-colors flex items-center justify-center gap-2"
+        className="w-full max-w-md py-3.5 mb-6 rounded-xl font-extrabold text-[15px] tracking-wide bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-[0_0_20px_rgba(192,38,211,0.4)] hover:shadow-[0_0_30px_rgba(192,38,211,0.6)] hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 border border-fuchsia-400/30"
       >
-        <Sparkles className="w-4 h-4" />
-        Generate Another Design
+        <Sparkles className="w-5 h-5 animate-pulse text-fuchsia-200" />
+        GENERATE ANOTHER DESIGN
       </button>
 
       <div className="w-full max-w-md mb-8">
