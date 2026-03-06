@@ -1418,9 +1418,10 @@ app.post(
 
     if (process.env.FB_PIXEL_ID && process.env.FB_ACCESS_TOKEN) {
       try {
+        const normalizedEmailForFB = email.trim().toLowerCase();
         const hashedEmail = crypto
           .createHash("sha256")
-          .update(email)
+          .update(normalizedEmailForFB)
           .digest("hex");
         await fetch(
           `https://graph.facebook.com/v19.0/${process.env.FB_PIXEL_ID}/events?access_token=${process.env.FB_ACCESS_TOKEN}`,
@@ -1437,6 +1438,7 @@ app.post(
                   custom_data: { currency: "USD", value: calculatedPrice },
                 },
               ],
+              test_event_code: "TEST88412",
             }),
           },
         );
