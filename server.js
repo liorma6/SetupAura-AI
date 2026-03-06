@@ -78,11 +78,11 @@ setInterval(async () => {
           // Send the email
           const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937; padding: 20px; line-height: 1.6;">
-            <p>Hey there,</p>
-            <p>We noticed you generated your room design but haven't unlocked your 10 additional premium designs and exact-match shopping list yet.</p>
-            <p>Just a quick reminder: our Launch Sale is currently active, so you can still unlock the full experience at the discounted price you saw on the site.</p>
+            <p>Hi there,</p>
+            <p>We noticed you generated your gaming room design but haven't unlocked your 10 additional premium designs and exact-match shopping list yet.</p>
+            <p>Your upgraded designs and items are still saved and waiting for you here:</p>
             <div style="margin: 25px 0;">
-                <a href="https://liorma.gumroad.com/l/setupaura-starter" style="background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Get 10 New Designs</a>
+                <a href="https://www.setupaura.online/pricing" style="background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View My Designs</a>
             </div>
             <p>Happy gaming,<br>The SetupAura AI Team</p>
         </div>`;
@@ -90,7 +90,7 @@ setInterval(async () => {
             .sendMail({
               from: '"SetupAura AI" <support@setupaura.online>',
               to: lead.email,
-              subject: "Your SetupAura room design is waiting...",
+              subject: "Your 10 new room designs are ready",
               html: emailHtml,
             })
             .catch((err) =>
@@ -1656,18 +1656,18 @@ app.get("/api/test-email", async (req, res) => {
   try {
     const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937; padding: 20px; line-height: 1.6;">
-            <p>Hey there,</p>
-            <p>We noticed you generated your room design but haven't unlocked your 10 additional premium designs and exact-match shopping list yet.</p>
-            <p>Just a quick reminder: our Launch Sale is currently active, so you can still unlock the full experience at the discounted price you saw on the site.</p>
+            <p>Hi there,</p>
+            <p>We noticed you generated your gaming room design but haven't unlocked your 10 additional premium designs and exact-match shopping list yet.</p>
+            <p>Your upgraded designs and items are still saved and waiting for you here:</p>
             <div style="margin: 25px 0;">
-                <a href="https://liorma.gumroad.com/l/setupaura-starter" style="background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Get 10 New Designs</a>
+                <a href="https://www.setupaura.online/pricing" style="background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">View My Designs</a>
             </div>
             <p>Happy gaming,<br>The SetupAura AI Team</p>
         </div>`;
     await transporter.sendMail({
       from: '"SetupAura AI" <support@setupaura.online>',
       to: ADMIN_EMAIL,
-      subject: "Your SetupAura room design is waiting...",
+      subject: "Your 10 new room designs are ready",
       html: emailHtml,
     });
     res.json({ success: true, message: "Test email sent to " + ADMIN_EMAIL });
