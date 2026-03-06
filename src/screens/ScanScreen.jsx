@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Cropper from "react-easy-crop";
 import { Button } from "../components/ui/Button";
 import {
@@ -157,7 +157,47 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [isAgreed, setIsAgreed] = useState(false);
 
+  const cameraInputRef = useRef(null);
+  const uploadInputRef = useRef(null);
   const scanTimerRef = useRef(null);
+
+  const uploadTriggerStyle = useMemo(
+    () => ({
+      WebkitTapHighlightColor: "rgba(0,0,0,0)",
+      WebkitTouchCallout: "none",
+      WebkitUserSelect: "none",
+      userSelect: "none",
+      WebkitAppearance: "none",
+      appearance: "none",
+      outline: "none",
+      boxShadow: "none",
+      touchAction: "manipulation",
+    }),
+    [],
+  );
+
+  const clearSafariTransientState = useCallback(() => {
+    document.activeElement?.blur?.();
+    cameraInputRef.current?.blur?.();
+    uploadInputRef.current?.blur?.();
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      window.requestAnimationFrame(() => {
+        document.activeElement?.blur?.();
+        cameraInputRef.current?.blur?.();
+        uploadInputRef.current?.blur?.();
+
+        window.requestAnimationFrame(() => {
+          document.activeElement?.blur?.();
+          cameraInputRef.current?.blur?.();
+          uploadInputRef.current?.blur?.();
+        });
+      });
+    }
+  }, []);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -169,8 +209,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
     if (!file) {
       input.value = "";
+      clearSafariTransientState();
       return;
     }
+
     setFileError("");
 
     try {
@@ -178,16 +220,19 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         setFileError("Unsupported format. Please upload JPG, PNG, or WEBP.");
         return;
       }
+
       if (file.size > MAX_FILE_SIZE) {
         setFileError("File too large. Maximum size is 10MB.");
         return;
       }
+
       if (isHeicOrHeif(file)) {
         setFileError(
           "HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.",
         );
         return;
       }
+
       try {
         const { dataUrl, width, height } = await correctImageOrientation(file);
         setAspectRatio(height > width ? 9 / 16 : 16 / 9);
@@ -200,9 +245,9 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         );
       }
     } finally {
-      // CRITICAL FOR iOS: Always reset the input and remove focus
       input.value = "";
       input.blur?.();
+      clearSafariTransientState();
     }
   };
 
@@ -271,10 +316,31 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   };
 
   useEffect(() => {
+    const handleWindowFocus = () => {
+      clearSafariTransientState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        clearSafariTransientState();
+      }
+    };
+
+    const handlePageShow = () => {
+      clearSafariTransientState();
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [clearSafariTransientState]);
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
@@ -345,21 +411,15 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               {!preview ? (
                 <label
                   htmlFor="upload-image-input"
-                  style={{
-                    WebkitTapHighlightColor: "transparent",
-                    WebkitTouchCallout: "none",
-                    WebkitUserSelect: "none",
-                    WebkitAppearance: "none",
-                    appearance: "none",
-                    outline: "none",
-                    boxShadow: "none",
-                  }}
+                  style={uploadTriggerStyle}
                   className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors select-none"
                 >
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400" />
                   </div>
-                  <p className="text-gray-300 font-medium">Tap to upload image</p>
+                  <p className="text-gray-300 font-medium">
+                    Tap to upload image
+                  </p>
                 </label>
               ) : (
                 <div className="w-full relative flex justify-center bg-gray-900/50">
@@ -383,31 +443,16 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <label
                 htmlFor="camera-image-input"
-                style={{
-                  WebkitTapHighlightColor: "transparent",
-                  WebkitTouchCallout: "none",
-                  WebkitUserSelect: "none",
-                  WebkitAppearance: "none",
-                  appearance: "none",
-                  outline: "none",
-                  boxShadow: "none",
-                }}
+                style={uploadTriggerStyle}
                 className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none"
               >
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
               </label>
+
               <label
                 htmlFor="upload-image-input"
-                style={{
-                  WebkitTapHighlightColor: "transparent",
-                  WebkitTouchCallout: "none",
-                  WebkitUserSelect: "none",
-                  WebkitAppearance: "none",
-                  appearance: "none",
-                  outline: "none",
-                  boxShadow: "none",
-                }}
+                style={uploadTriggerStyle}
                 className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none"
               >
                 <ImageIcon className="w-4 h-4" />
@@ -468,6 +513,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
       )}
 
       <input
+        ref={cameraInputRef}
         type="file"
         id="camera-image-input"
         onChange={handleFileSelect}
@@ -486,7 +532,9 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
           whiteSpace: "nowrap",
         }}
       />
+
       <input
+        ref={uploadInputRef}
         type="file"
         id="upload-image-input"
         onChange={handleFileSelect}
@@ -504,7 +552,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
           whiteSpace: "nowrap",
         }}
       />
-
     </div>
   );
 };
