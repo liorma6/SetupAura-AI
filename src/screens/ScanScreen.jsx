@@ -208,22 +208,24 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
     }
   };
 
-  const openCameraPicker = useCallback(() => {
-    setFileError("");
-    document.activeElement?.blur?.();
-    if (cameraInputRef.current) {
-      cameraInputRef.current.value = "";
-      cameraInputRef.current.click();
-    }
-  }, []);
+  const triggerFilePicker = useCallback(
+    (inputRef) => {
+      setFileError("");
+      document.activeElement?.blur?.();
+      const input = inputRef.current;
+      if (!input) return;
+      input.value = "";
+      input.click();
+      setTimeout(() => {
+        input.blur?.();
+        document.activeElement?.blur?.();
+      }, 0);
+    },
+    [setFileError],
+  );
 
-  const openLibraryPicker = useCallback(() => {
-    setFileError("");
+  const prepPickerGesture = useCallback(() => {
     document.activeElement?.blur?.();
-    if (uploadInputRef.current) {
-      uploadInputRef.current.value = "";
-      uploadInputRef.current.click();
-    }
   }, []);
 
   const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
@@ -363,19 +365,25 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
             <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden border border-dashed border-white/20">
               {!preview ? (
-                <div
-                  onClick={openLibraryPicker}
+                <button
+                  type="button"
+                  onPointerDown={prepPickerGesture}
+                  onTouchStart={prepPickerGesture}
+                  onClick={() => triggerFilePicker(uploadInputRef)}
                   style={{
                     WebkitTapHighlightColor: "transparent",
+                    WebkitTouchCallout: "none",
+                    WebkitUserSelect: "none",
                     touchAction: "manipulation",
+                    outline: "none",
                   }}
-                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors"
+                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors select-none outline-none focus:outline-none focus-visible:outline-none appearance-none bg-transparent border-0 p-0 m-0"
                 >
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-300 font-medium">Tap to upload image</p>
-                </div>
+                </button>
               ) : (
                 <div className="w-full relative flex justify-center bg-gray-900/50">
                   <img
@@ -398,24 +406,34 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <button
                 type="button"
-                onClick={openCameraPicker}
+                onPointerDown={prepPickerGesture}
+                onTouchStart={prepPickerGesture}
+                onClick={() => triggerFilePicker(cameraInputRef)}
                 style={{
                   WebkitTapHighlightColor: "transparent",
+                  WebkitTouchCallout: "none",
+                  WebkitUserSelect: "none",
                   touchAction: "manipulation",
+                  outline: "none",
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none focus:outline-none focus-visible:outline-none"
               >
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
               </button>
               <button
                 type="button"
-                onClick={openLibraryPicker}
+                onPointerDown={prepPickerGesture}
+                onTouchStart={prepPickerGesture}
+                onClick={() => triggerFilePicker(uploadInputRef)}
                 style={{
                   WebkitTapHighlightColor: "transparent",
+                  WebkitTouchCallout: "none",
+                  WebkitUserSelect: "none",
                   touchAction: "manipulation",
+                  outline: "none",
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none focus:outline-none focus-visible:outline-none"
               >
                 <ImageIcon className="w-4 h-4" />
                 <span>Upload Image</span>
