@@ -99,6 +99,7 @@ export const ResultScreen = () => {
     generatedImage,
     verifiedEmail,
     isPremium,
+    tokensRemaining,
     setScreen,
     setUploadedImage,
     setGeneratedImage,
@@ -331,6 +332,14 @@ export const ResultScreen = () => {
     if (!hasUnlockedAccess) setScreen("pricing");
   };
 
+  const handleAnotherDesign = () => {
+    if (Number(tokensRemaining || 0) > 0) {
+      setScreen("welcome");
+      return;
+    }
+    setScreen("pricing");
+  };
+
   const aspectClass =
     orientation === "portrait" ? "aspect-[2/3]" : "aspect-[16/9]";
   const isLandscapeResult = resultOrientation === "landscape";
@@ -405,6 +414,14 @@ export const ResultScreen = () => {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={handleAnotherDesign}
+        className="w-full max-w-md py-3 mb-6 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/15 border border-white/20 transition-colors flex items-center justify-center gap-2"
+      >
+        <Sparkles className="w-4 h-4" />
+        Generate Another Design
+      </button>
 
       <div className="w-full max-w-md mb-8">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
