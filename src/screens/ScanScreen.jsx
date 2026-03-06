@@ -157,8 +157,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [isAgreed, setIsAgreed] = useState(false);
 
-  const cameraInputRef = useRef(null);
-  const uploadInputRef = useRef(null);
   const scanTimerRef = useRef(null);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -207,26 +205,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
       input.blur?.();
     }
   };
-
-  const triggerFilePicker = useCallback(
-    (inputRef) => {
-      setFileError("");
-      document.activeElement?.blur?.();
-      const input = inputRef.current;
-      if (!input) return;
-      input.value = "";
-      input.click();
-      setTimeout(() => {
-        input.blur?.();
-        document.activeElement?.blur?.();
-      }, 0);
-    },
-    [setFileError],
-  );
-
-  const prepPickerGesture = useCallback(() => {
-    document.activeElement?.blur?.();
-  }, []);
 
   const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
     const image = new Image();
@@ -365,27 +343,24 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
             <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden border border-dashed border-white/20">
               {!preview ? (
-                <button
-                  type="button"
-                  onPointerDown={prepPickerGesture}
-                  onClick={(e) => {
-                    e.currentTarget.blur?.();
-                    triggerFilePicker(uploadInputRef);
-                  }}
+                <label
+                  htmlFor="upload-image-input"
                   style={{
                     WebkitTapHighlightColor: "transparent",
                     WebkitTouchCallout: "none",
                     WebkitUserSelect: "none",
-                    touchAction: "manipulation",
+                    WebkitAppearance: "none",
+                    appearance: "none",
                     outline: "none",
+                    boxShadow: "none",
                   }}
-                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors select-none outline-none active:outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 appearance-none bg-transparent border-0 p-0 m-0"
+                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors select-none"
                 >
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
                     <Upload className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-300 font-medium">Tap to upload image</p>
-                </button>
+                </label>
               ) : (
                 <div className="w-full relative flex justify-center bg-gray-900/50">
                   <img
@@ -406,44 +381,38 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
           <div className="w-full max-w-md mx-auto pb-10 pt-4 px-6 shrink-0">
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <button
-                type="button"
-                onPointerDown={prepPickerGesture}
-                onClick={(e) => {
-                  e.currentTarget.blur?.();
-                  triggerFilePicker(cameraInputRef);
-                }}
+              <label
+                htmlFor="camera-image-input"
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   WebkitTouchCallout: "none",
                   WebkitUserSelect: "none",
-                  touchAction: "manipulation",
+                  WebkitAppearance: "none",
+                  appearance: "none",
                   outline: "none",
+                  boxShadow: "none",
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none active:outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none"
               >
                 <Camera className="w-4 h-4" />
                 <span>Take Photo</span>
-              </button>
-              <button
-                type="button"
-                onPointerDown={prepPickerGesture}
-                onClick={(e) => {
-                  e.currentTarget.blur?.();
-                  triggerFilePicker(uploadInputRef);
-                }}
+              </label>
+              <label
+                htmlFor="upload-image-input"
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   WebkitTouchCallout: "none",
                   WebkitUserSelect: "none",
-                  touchAction: "manipulation",
+                  WebkitAppearance: "none",
+                  appearance: "none",
                   outline: "none",
+                  boxShadow: "none",
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none outline-none active:outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0"
+                className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full cursor-pointer select-none"
               >
                 <ImageIcon className="w-4 h-4" />
                 <span>Upload Image</span>
-              </button>
+              </label>
             </div>
 
             <div className="flex items-start gap-2 mb-4 px-1">
@@ -500,18 +469,40 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
       <input
         type="file"
-        ref={cameraInputRef}
+        id="camera-image-input"
         onChange={handleFileSelect}
         accept="image/*"
         capture="environment"
-        className="hidden"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          clipPath: "inset(50%)",
+          border: 0,
+          whiteSpace: "nowrap",
+        }}
       />
       <input
         type="file"
-        ref={uploadInputRef}
+        id="upload-image-input"
         onChange={handleFileSelect}
         accept="image/jpeg,image/jpg,image/png,image/webp,.heic,.heif"
-        className="hidden"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          clipPath: "inset(50%)",
+          border: 0,
+          whiteSpace: "nowrap",
+        }}
       />
 
     </div>
