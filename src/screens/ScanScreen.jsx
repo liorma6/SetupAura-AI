@@ -202,6 +202,14 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
   const triggerCamera = () => cameraInputRef.current?.click();
   const triggerUpload = () => uploadInputRef.current?.click();
+  const handleTouchCamera = (e) => {
+    e.preventDefault();
+    triggerCamera();
+  };
+  const handleTouchUpload = (e) => {
+    e.preventDefault();
+    triggerUpload();
+  };
 
   const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
     const image = new Image();
@@ -342,6 +350,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               {!preview ? (
                 <div
                   onClick={triggerUpload}
+                  onTouchEnd={handleTouchUpload}
                   className="w-full h-full flex flex-col items-center justify-center cursor-pointer transition-colors"
                 >
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 transition-all duration-300">
@@ -372,6 +381,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onClick={triggerCamera}
+                onTouchEnd={handleTouchCamera}
                 className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full"
               >
                 <Camera className="w-4 h-4" />
@@ -380,6 +390,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onClick={triggerUpload}
+                onTouchEnd={handleTouchUpload}
                 className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-white/20 transition-colors w-full"
               >
                 <ImageIcon className="w-4 h-4" />
