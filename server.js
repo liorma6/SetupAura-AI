@@ -1438,7 +1438,6 @@ app.post(
                   custom_data: { currency: "USD", value: calculatedPrice },
                 },
               ],
-              test_event_code: "TEST88412",
             }),
           },
         );
