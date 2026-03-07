@@ -471,6 +471,8 @@ export const RecommendationsScreen = () => {
       }
       if (typeof window !== "undefined" && window.posthog) {
         window.posthog.capture("Lead");
+        const userEmail = pendingEmail.trim();
+        window.posthog.identify(userEmail, { email: userEmail });
       }
 
       const verified = pendingEmail.trim();
