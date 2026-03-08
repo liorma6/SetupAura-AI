@@ -492,17 +492,18 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
 
 const SHARED_THEME_CONFIG = {
   MODERN_GAMING: {
-    label: "professional designer gaming sanctuary, high-end interior photography",
+    label: "elite high-tech gaming sanctuary, professional streamer aesthetic",
     heroItems: [
-      "Premium LED wall panels (Nanoleaf style) with realistic soft-glow diffusion",
-      "High-end dual-monitor setup with clean aesthetic and matching peripherals",
-      "Architectural acoustic panels and designer furniture from stores like IKEA or Secretlab",
+      "Floating shelves displaying high-end gaming collectibles and figurines",
+      "Dual or triple monitor setup with a professional boom-arm microphone",
+      "Designer 3D wall panels or framed gaming art with integrated LED backlighting",
+      "A premium XL desk mat and professional headset on a dedicated stand",
     ],
     criticalRequirements: [
-      "Cinematic but realistic lighting: soft purple/blue ambient glow with clear light sources",
-      "Clean, organized surfaces with realistic high-end tech items",
-      "Natural textures: high-quality fabric, wood-grain desks, and matte finishes",
-      "Keep the original room's window and wall placement but upgrade the materials",
+      "Rich gaming culture details: collectibles, posters, and professional tech peripherals",
+      "Layered RGB lighting: combination of wall panels, desk glow, and hardware lighting",
+      "Organized but 'lived-in' professional aesthetic with realistic high-end textures",
+      "Cinematic depth with blurred background elements to emphasize the gear",
     ],
   },
   ANIME: {
@@ -866,17 +867,26 @@ app.post(
       const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
       console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
       const themeConfig = resolveThemeConfig(activeTheme);
-      const enhancedPrompt = `Photorealistic interior DESIGNER EDIT of the same room. (NOT CGI, NOT a render).
-PRESERVE:
-Keep the exact room structure, windows, and ceiling height.
-Maintain the camera angle and perspective perfectly.
-TRANSFORMATION GOAL:
-Turn this into a 'Dream Gaming Room' that looks 100% buildable in real life.
-LIGHTING: Add realistic RGB accent lighting (behind desk, behind monitors, or on one feature wall). Use soft, indirect glow that bounces off surfaces naturally. No glowing air or fog.
-FURNITURE: Replace current furniture with high-end, purchasable gaming gear (Secretlab-style chair, clean wide desk).
-WALLS: Upgrade the walls with professional textures (dark paint, acoustic panels, or clean shelves) while keeping the same layout.
-QUALITY: shot on 35mm lens, f/2.8, professional lighting, highly detailed textures.
-ABSOLUTELY NO: floating lights, futuristic sci-fi props, black bars, or cartoonish colors. It must look like a real photo of a professional room makeover.`;
+      const enhancedPrompt = `Photorealistic interior UPGRADE of this room into a premium gaming den. (NOT CGI).
+CORE INSTRUCTIONS:
+
+DECOR: Add floating shelves with high-end gaming collectibles (like Funko Pops or statues) and framed gaming posters on the walls.
+
+TECH: Upgrade the workstation to include dual monitors, a professional arm-mounted microphone, and a high-end mechanical keyboard.
+
+LIGHTING: Create an immersive atmosphere with a mix of LED wall shapes (Hexagons/Triangles) and soft ambient RGB glow. Light must realistically reflect off surfaces.
+
+FURNITURE: Replace current furniture with a professional gaming desk and a premium Secretlab-style ergonomic chair.
+
+TECHNICAL STYLE:
+
+Interior design photography, shot on 35mm lens, f/2.8 for realistic depth, vivid but natural colors.
+
+Preserve the original room's footprint and window/door locations.
+
+Ensure the final result looks like a real, expensive room makeover that a gamer actually built.
+
+DO NOT: add futuristic sci-fi windows, floating objects, or cartoonish effects. Keep every item realistic and purchasable.`;
 
       const TIMEOUT_MS = 90000;
       let aiResponse;
