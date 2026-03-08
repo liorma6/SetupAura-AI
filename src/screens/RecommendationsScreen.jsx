@@ -467,9 +467,6 @@ export const RecommendationsScreen = () => {
         return;
       }
       setOtpLoading(false);
-      if (typeof window !== "undefined" && window.fbq) {
-        window.fbq("track", "Lead");
-      }
       try {
         posthog.capture("Lead");
         const userEmail = pendingEmail.trim();

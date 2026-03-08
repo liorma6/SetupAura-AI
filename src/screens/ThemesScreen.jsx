@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles, ArrowRight } from "lucide-react";
 import { ScreenContainer } from "../components/ui/ScreenContainer";
 import { Button } from "../components/ui/Button";
 import { useApp } from "../context/AppContext";
@@ -71,6 +71,8 @@ export const ThemesScreen = () => {
     tokensRemaining,
   } = useApp();
 
+  const [localSelection, setLocalSelection] = useState(null); // מתחיל ריק כדי להכריח בחירה
+
   const normalizedThemes = useMemo(
     () =>
       themes.map((theme) => ({
@@ -80,75 +82,99 @@ export const ThemesScreen = () => {
     [isPremium],
   );
 
-  const [localSelection, setLocalSelection] = useState("MODERN GAMING (RGB)");
+  const handleNext = (themeId = localSelection) => {
+    if (!themeId) return;
 
-  const handleNext = () => {
+    // בדיקה אם התימה שנבחרה נעולה (ליתר ביטחון)
+    const selectedThemeObj = themes.find((t) => t.id === themeId);
+    const isLocked = selectedThemeObj?.status === "PREMIUM" && !isPremium;
+    if (isLocked) return;
+
     if (verifiedEmail && Number(tokensRemaining || 0) <= 0) {
       setScreen("pricing");
       return;
     }
 
-    setSelectedTheme(localSelection);
+    setSelectedTheme(themeId);
     setScreen("recommendations");
   };
 
   return (
     <ScreenContainer>
-      <div className="flex-1 overflow-y-auto pb-28">
-        <header className="mb-6">
-          <h2 className="text-xl font-display font-extrabold tracking-wide text-white">
-            STEP 2: CUSTOMIZE YOUR THEME
+      <div className="flex-1 overflow-y-auto pb-32 px-1">
+        <header className="mb-8 mt-2">
+          <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold mb-3 tracking-widest uppercase">
+            Step 2 of 3
+          </div>
+          <h2 className="text-2xl font-display font-black tracking-tight text-white uppercase italic italic">
+            Pick Your Style
           </h2>
-          <p className="text-gray-400 text-sm mt-1">
-            Choose an aesthetic style for your dream gaming room
+          <p className="text-gray-400 text-sm mt-1 font-medium">
+            Double-click a theme to select and generate instantly.
           </p>
         </header>
 
         <div className="grid grid-cols-2 gap-4">
           {normalizedThemes.map((theme) => {
-            const selected = localSelection === theme.id;
+            const isSelected = localSelection === theme.id;
+
             return (
               <motion.button
                 key={theme.id}
                 onClick={() => !theme.isLocked && setLocalSelection(theme.id)}
-                whileTap={{ scale: 0.98 }}
-                className={`group relative aspect-[3/4] overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
-                  selected
-                    ? "border-primary shadow-[0_0_32px_rgba(168,85,247,0.5)]"
-                    : "border-white/10 hover:border-white/30"
-                } ${theme.isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
+                onDoubleClick={() => !theme.isLocked && handleNext(theme.id)}
+                whileHover={!theme.isLocked ? { scale: 1.02 } : {}}
+                whileTap={!theme.isLocked ? { scale: 0.97 } : {}}
+                className={`group relative aspect-[4/5] overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
+                  isSelected
+                    ? "border-primary shadow-[0_0_25px_rgba(168,85,247,0.4)] z-10 scale-[1.03]"
+                    : "border-white/5 hover:border-white/20"
+                } ${theme.isLocked ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <img
                   src={theme.image}
                   alt={theme.name}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
                 />
+
+                {/* Overlay layers */}
                 <div
                   className={`absolute inset-0 bg-gradient-to-t ${theme.tint}`}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/10" />
+                <div
+                  className={`absolute inset-0 bg-black/40 transition-opacity ${isSelected ? "opacity-20" : "opacity-60"}`}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20" />
 
-                <div className="absolute top-2.5 left-2.5">
+                {/* Status Badges */}
+                <div className="absolute top-3 left-3 flex gap-2">
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide backdrop-blur-sm ${
+                    className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[9px] font-black tracking-tighter backdrop-blur-md ${
                       theme.status === "FREE"
-                        ? "bg-emerald-500/20 border-emerald-300/40 text-emerald-200"
-                        : "bg-black/60 border-white/25 text-white"
+                        ? "bg-emerald-500/20 border-emerald-400/30 text-emerald-300"
+                        : "bg-white/10 border-white/10 text-white"
                     }`}
                   >
-                    {theme.isLocked && <Lock className="w-3 h-3" />}
+                    {theme.isLocked && <Lock className="w-2.5 h-2.5" />}
                     {theme.status}
                   </span>
                 </div>
 
-                {selected && (
-                  <div className="absolute top-2.5 right-2.5 rounded-full bg-primary/95 p-1.5 shadow-[0_0_18px_rgba(168,85,247,0.7)]">
+                {/* Selected Indicator */}
+                {isSelected && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute top-3 right-3 rounded-full bg-primary p-1.5 shadow-lg"
+                  >
                     <Sparkles className="w-3.5 h-3.5 text-white" />
-                  </div>
+                  </motion.div>
                 )}
 
-                <div className="absolute left-3 right-3 bottom-3">
-                  <h3 className="text-[12px] sm:text-sm font-black tracking-wide text-white leading-tight drop-shadow-md">
+                <div className="absolute left-4 right-4 bottom-4">
+                  <h3
+                    className={`text-[13px] font-black tracking-tight text-white uppercase leading-tight transition-all ${isSelected ? "scale-105" : ""}`}
+                  >
                     {theme.name}
                   </h3>
                 </div>
@@ -158,14 +184,21 @@ export const ThemesScreen = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-xl border-t border-white/10 z-[60] max-w-[480px] mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black via-black/95 to-transparent backdrop-blur-md z-[60] max-w-[480px] mx-auto">
         <Button
           variant="primary"
-          onClick={handleNext}
-          className="w-full py-3.5 text-base font-extrabold tracking-wide shadow-lg shadow-primary/30"
+          onClick={() => handleNext()}
+          disabled={!localSelection}
+          className={`w-full py-4 text-base font-black tracking-widest uppercase transition-all duration-500 shadow-2xl ${
+            localSelection
+              ? "opacity-100 scale-100 shadow-primary/40"
+              : "opacity-30 grayscale scale-[0.98] pointer-events-none border-white/5"
+          }`}
         >
-          <Sparkles className="w-5 h-5" />
-          GENERATE MY DESIGN
+          {localSelection ? "Generate My Design" : "Select a Theme"}
+          <ArrowRight
+            className={`w-5 h-5 ml-2 transition-transform duration-300 ${localSelection ? "translate-x-1" : ""}`}
+          />
         </Button>
       </div>
     </ScreenContainer>

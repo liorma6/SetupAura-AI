@@ -39,6 +39,20 @@ const FRONTEND_URL = (
 
 const otpStore = new Map();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const normalizeEmailAddress = (email = "") => {
+  const normalized = String(email || "").trim().toLowerCase();
+  const atIndex = normalized.lastIndexOf("@");
+  if (atIndex <= 0) return normalized;
+
+  const localPart = normalized.slice(0, atIndex);
+  const domainPart = normalized.slice(atIndex + 1);
+
+  if (domainPart === "gmail.com" || domainPart === "googlemail.com") {
+    return `${localPart.replace(/\+.*/, "")}@${domainPart}`;
+  }
+
+  return normalized;
+};
 const POSTHOG_KEY =
   process.env.POSTHOG_API_KEY || process.env.VITE_PUBLIC_POSTHOG_KEY || "";
 const POSTHOG_HOST = (
@@ -168,18 +182,16 @@ const readLeads = () => {
 
 const saveLead = (email) => {
   try {
-    const normalizedEmail = String(email || "").trim();
+    const normalizedEmail = normalizeEmailAddress(email);
     const leads = readLeads();
     const existingEmails = leads
       .map((entry) =>
         typeof entry === "string"
-          ? entry.trim().toLowerCase()
-          : String(entry?.email || "")
-              .trim()
-              .toLowerCase(),
+          ? normalizeEmailAddress(entry)
+          : normalizeEmailAddress(entry?.email || ""),
       )
       .filter(Boolean);
-    if (existingEmails.includes(normalizedEmail.toLowerCase())) return;
+    if (existingEmails.includes(normalizedEmail)) return;
     const newLead = {
       email: normalizedEmail,
       timestamp: new Date().toISOString(),
@@ -200,14 +212,15 @@ const getLeadIndexByEmail = (leads, email) =>
     (entry) =>
       entry &&
       entry.email &&
-      entry.email.toLowerCase() === String(email || "").toLowerCase(),
+      normalizeEmailAddress(entry.email) === normalizeEmailAddress(email),
   );
 
 const upsertLeadRecord = (email, updates = {}) => {
   const leads = readLeads();
-  const index = getLeadIndexByEmail(leads, email);
+  const normalizedEmail = normalizeEmailAddress(email);
+  const index = getLeadIndexByEmail(leads, normalizedEmail);
   const base = {
-    email: String(email || "").trim(),
+    email: normalizedEmail,
     timestamp: new Date().toISOString(),
     premium: false,
     tokensRemaining: 1,
@@ -227,11 +240,10 @@ const upsertLeadRecord = (email, updates = {}) => {
 };
 
 const getUserRecord = (email) => {
-  const normalized = String(email || "")
-    .trim()
-    .toLowerCase();
+  const normalized = normalizeEmailAddress(email);
   return readLeads().find(
-    (entry) => entry && entry.email && entry.email.toLowerCase() === normalized,
+    (entry) =>
+      entry && entry.email && normalizeEmailAddress(entry.email) === normalized,
   );
 };
 
@@ -1280,7 +1292,7 @@ const requestOtpHandler = async (req, res) => {
       error: "INVALID_EMAIL_FORMAT",
       message: "Please enter a valid email address.",
     });
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = normalizeEmailAddress(email);
   const existing = otpStore.get(normalizedEmail);
   if (
     existing &&
@@ -1332,7 +1344,7 @@ const verifyOtpHandler = (req, res) => {
   const { email, code } = req.body;
   if (!email || !code)
     return res.status(400).json({ error: "Email and code required" });
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = normalizeEmailAddress(email);
   const entry = otpStore.get(normalizedEmail);
   if (!entry)
     return res.status(400).json({
@@ -1508,9 +1520,7 @@ app.post(
 );
 
 app.get("/api/user/:email", (req, res) => {
-  const email = String(req.params.email || "")
-    .trim()
-    .toLowerCase();
+  const email = normalizeEmailAddress(req.params.email || "");
   if (!email) {
     return res.status(400).json({ error: "EMAIL_REQUIRED" });
   }
@@ -1556,9 +1566,7 @@ app.post("/api/admin/update-tokens", (req, res) => {
   }
 
   const { targetEmail, newTokens } = req.body || {};
-  const normalizedEmail = String(targetEmail || "")
-    .trim()
-    .toLowerCase();
+  const normalizedEmail = normalizeEmailAddress(targetEmail);
   const parsedTokens = Math.max(0, Math.floor(Number(newTokens) || 0));
 
   if (!normalizedEmail) {
@@ -1594,9 +1602,7 @@ app.post("/api/admin/toggle-premium", (req, res) => {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
   const { targetEmail, isPremium } = req.body;
-  const normalizedEmail = String(targetEmail || "")
-    .trim()
-    .toLowerCase();
+  const normalizedEmail = normalizeEmailAddress(targetEmail);
 
   const leads = readLeads();
   const leadIndex = getLeadIndexByEmail(leads, normalizedEmail);
@@ -1621,9 +1627,7 @@ app.post("/api/admin-upgrade", (req, res) => {
   ) {
     return res.status(403).json({ error: "FORBIDDEN" });
   }
-  const normalizedEmail = String(email || "")
-    .trim()
-    .toLowerCase();
+  const normalizedEmail = normalizeEmailAddress(email);
 
   const amount = Math.max(0, Math.floor(Number(tokensToAdd) || 0));
   if (amount <= 0) {
