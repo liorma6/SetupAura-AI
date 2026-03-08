@@ -6,6 +6,7 @@ import {
   RotateCcw,
   CheckCircle,
 } from "lucide-react";
+import posthog from "posthog-js";
 import { useApp } from "../context/AppContext";
 
 const API_URL =
@@ -469,10 +470,12 @@ export const RecommendationsScreen = () => {
       if (typeof window !== "undefined" && window.fbq) {
         window.fbq("track", "Lead");
       }
-      if (typeof window !== "undefined" && window.posthog) {
-        window.posthog.capture("Lead");
+      try {
+        posthog.capture("Lead");
         const userEmail = pendingEmail.trim();
-        window.posthog.identify(userEmail, { email: userEmail });
+        posthog.identify(userEmail, { email: userEmail });
+      } catch (err) {
+        console.warn("PostHog tracking skipped or not initialized");
       }
 
       const verified = pendingEmail.trim();
