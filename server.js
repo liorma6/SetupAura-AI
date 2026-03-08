@@ -492,17 +492,17 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
 
 const SHARED_THEME_CONFIG = {
   MODERN_GAMING: {
-    label: "realistic professional clean minimalist gaming setup",
+    label: "professional designer gaming sanctuary, high-end interior photography",
     heroItems: [
-      "Authentic Govee or Nanoleaf LED wall panels with realistic light diffusion",
-      "Standard dual-monitor setup with ergonomic arms and clean cable management",
-      "Commercially available acoustic foam panels and IKEA-style furniture",
+      "Premium LED wall panels (Nanoleaf style) with realistic soft-glow diffusion",
+      "High-end dual-monitor setup with clean aesthetic and matching peripherals",
+      "Architectural acoustic panels and designer furniture from stores like IKEA or Secretlab",
     ],
     criticalRequirements: [
-      "physically accurate ambient lighting from visible LED strips and lamps",
-      "furniture and peripherals that exist in real retail stores",
-      "realistic textures: matte plastic, wood grain, and fabric",
-      "natural depth of field and realistic interior photography composition",
+      "Cinematic but realistic lighting: soft purple/blue ambient glow with clear light sources",
+      "Clean, organized surfaces with realistic high-end tech items",
+      "Natural textures: high-quality fabric, wood-grain desks, and matte finishes",
+      "Keep the original room's window and wall placement but upgrade the materials",
     ],
   },
   ANIME: {
@@ -834,7 +834,7 @@ app.post(
                 {
                   type: "image_url",
                   image_url: {
-                    url: `data:image/png;base64,${base64Data}`,
+                    url: `data:${inputMimeType};base64,${base64Data}`,
                     detail: "low",
                   },
                 },
@@ -866,26 +866,17 @@ app.post(
       const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
       console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
       const themeConfig = resolveThemeConfig(activeTheme);
-      const enhancedPrompt = `Transform this photo into a real-life, achievable ${themeConfig.label} gaming room.
-TECHNICAL SPECIFICATIONS:
-
-Style: Professional interior design photography, RAW photo, 8k resolution, shot on iPhone 15 Pro.
-
-Lighting: Natural ambient light combined with realistic indirect RGB strips. No glowing air or unrealistic fog.
-
-Furniture: Use realistic, purchasable furniture and accessories (like IKEA, Secretlab, or Logitech).
-
-Fidelity: Keep the exact walls, windows, and room structure of the original photo.
-
-MANDATORY:
-
-Add a high-quality, commercially available gaming chair.
-
-Ensure all textures (wood, metal, fabric) look 100% photorealistic and tangible.
-
-No AI-generated 'artifacts' or floating lights. This must look like a real interior design photograph.
-
-Fill the entire canvas. No borders, no padding.`;
+      const enhancedPrompt = `Photorealistic interior DESIGNER EDIT of the same room. (NOT CGI, NOT a render).
+PRESERVE:
+Keep the exact room structure, windows, and ceiling height.
+Maintain the camera angle and perspective perfectly.
+TRANSFORMATION GOAL:
+Turn this into a 'Dream Gaming Room' that looks 100% buildable in real life.
+LIGHTING: Add realistic RGB accent lighting (behind desk, behind monitors, or on one feature wall). Use soft, indirect glow that bounces off surfaces naturally. No glowing air or fog.
+FURNITURE: Replace current furniture with high-end, purchasable gaming gear (Secretlab-style chair, clean wide desk).
+WALLS: Upgrade the walls with professional textures (dark paint, acoustic panels, or clean shelves) while keeping the same layout.
+QUALITY: shot on 35mm lens, f/2.8, professional lighting, highly detailed textures.
+ABSOLUTELY NO: floating lights, futuristic sci-fi props, black bars, or cartoonish colors. It must look like a real photo of a professional room makeover.`;
 
       const TIMEOUT_MS = 90000;
       let aiResponse;
@@ -957,7 +948,6 @@ Fill the entire canvas. No borders, no padding.`;
       const filepath = path.join(IMAGES_DIR, filename);
       const generatedBuffer = Buffer.from(generatedBase64, "base64");
       const processedBuffer = await sharp(generatedBuffer)
-        .trim({ threshold: 10 })
         .resize(inputWidth || 1024, inputHeight || 1024, {
           fit: "cover",
           position: "centre",
