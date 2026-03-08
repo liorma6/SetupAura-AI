@@ -58,6 +58,7 @@ export const RecommendationsScreen = () => {
   const otpRefs = useRef([]);
   const cooldownRef = useRef(null);
   const isGeneratingRef = useRef(false);
+  const hasCalledGenerate = useRef(false);
 
   const toBase64 = useCallback(
     (blobUrl) =>
@@ -320,7 +321,8 @@ export const RecommendationsScreen = () => {
   );
 
   useEffect(() => {
-    if (flow === "loading" && verifiedEmail) {
+    if (flow === "loading" && verifiedEmail && !hasCalledGenerate.current) {
+      hasCalledGenerate.current = true;
       generateForEmail(verifiedEmail);
     }
   }, [flow, verifiedEmail, generateForEmail]);
