@@ -867,26 +867,24 @@ app.post(
       const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
       console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
       const themeConfig = resolveThemeConfig(activeTheme);
-      const enhancedPrompt = `Photorealistic interior UPGRADE of this room into a premium gaming den. (NOT CGI).
+      const enhancedPrompt = `Photorealistic interior UPGRADE of this room into a premium ${themeConfig.label}. (NOT CGI).
 CORE INSTRUCTIONS:
 
-DECOR: Add floating shelves with high-end gaming collectibles (like Funko Pops or statues) and framed gaming posters on the walls.
+THEME & DECOR: Fully embrace the ${themeConfig.label} aesthetic. Add high-end collectibles, shelves, and decor. YOU MUST INTEGRATE THESE SPECIFIC ELEMENTS: ${themeConfig.heroItems.join(", ")}.
 
-TECH: Upgrade the workstation to include dual monitors, a professional arm-mounted microphone, and a high-end mechanical keyboard.
+TECH & FURNITURE: Upgrade the workstation to a professional setup (dual monitors, boom-arm microphone, premium ergonomic gaming chair, high-end desk).
 
-LIGHTING: Create an immersive atmosphere with a mix of LED wall shapes (Hexagons/Triangles) and soft ambient RGB glow. Light must realistically reflect off surfaces.
-
-FURNITURE: Replace current furniture with a professional gaming desk and a premium Secretlab-style ergonomic chair.
+LIGHTING & ATMOSPHERE: ${themeConfig.criticalRequirements.join(". ")}. Light must realistically reflect off surfaces.
 
 TECHNICAL STYLE:
 
 Interior design photography, shot on 35mm lens, f/2.8 for realistic depth, vivid but natural colors.
 
-Preserve the original room's footprint and window/door locations.
+Preserve the original room's exact footprint, walls, and window/door locations perfectly.
 
 Ensure the final result looks like a real, expensive room makeover that a gamer actually built.
 
-DO NOT: add futuristic sci-fi windows, floating objects, or cartoonish effects. Keep every item realistic and purchasable.`;
+DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every item realistic and physically possible.`;
 
       const TIMEOUT_MS = 90000;
       let aiResponse;
