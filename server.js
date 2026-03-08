@@ -492,17 +492,17 @@ const getImageInputForGemini = async ({ image, imageUrl }) => {
 
 const SHARED_THEME_CONFIG = {
   MODERN_GAMING: {
-    label: "ultra-modern luxury RGB streamer battlestation",
+    label: "realistic professional clean minimalist gaming setup",
     heroItems: [
-      "Immersive Wall-to-Wall Neon RGB Lighting Panels (Nanoleaf style)",
-      "Massive Triple-Monitor Curved Setup with Glowing Liquid-Cooled PC Tower",
-      "Acoustic Foam Hexagon Wall Panels with LED Strips",
+      "Authentic Govee or Nanoleaf LED wall panels with realistic light diffusion",
+      "Standard dual-monitor setup with ergonomic arms and clean cable management",
+      "Commercially available acoustic foam panels and IKEA-style furniture",
     ],
     criticalRequirements: [
-      "integrated RGB ambient lighting with realistic bounce and glow",
-      "premium dual or triple monitor workstation with clean cable management",
-      "modern architectural accents and premium materials",
-      "balanced composition with realistic furniture scale and spacing",
+      "physically accurate ambient lighting from visible LED strips and lamps",
+      "furniture and peripherals that exist in real retail stores",
+      "realistic textures: matte plastic, wood grain, and fabric",
+      "natural depth of field and realistic interior photography composition",
     ],
   },
   ANIME: {
@@ -866,7 +866,26 @@ app.post(
       const activeTheme = (theme || "MODERN GAMING (RGB)").trim();
       console.log(`[OpenAI] theme: ${activeTheme} | email: ${email}`);
       const themeConfig = resolveThemeConfig(activeTheme);
-      const enhancedPrompt = `Transform this photo into a high-end room in a ${themeConfig.label} style. Keep the same room geometry and camera angle. Upgrade the lighting with atmospheric accents that match the theme, add a premium desk setup, and MUST include a premium chair or seating that perfectly fits the ${themeConfig.label} aesthetic. Make it look like a real interior photograph. Fill the entire canvas. No borders, no black bars, no letterboxing, no padding.`;
+      const enhancedPrompt = `Transform this photo into a real-life, achievable ${themeConfig.label} gaming room.
+TECHNICAL SPECIFICATIONS:
+
+Style: Professional interior design photography, RAW photo, 8k resolution, shot on iPhone 15 Pro.
+
+Lighting: Natural ambient light combined with realistic indirect RGB strips. No glowing air or unrealistic fog.
+
+Furniture: Use realistic, purchasable furniture and accessories (like IKEA, Secretlab, or Logitech).
+
+Fidelity: Keep the exact walls, windows, and room structure of the original photo.
+
+MANDATORY:
+
+Add a high-quality, commercially available gaming chair.
+
+Ensure all textures (wood, metal, fabric) look 100% photorealistic and tangible.
+
+No AI-generated 'artifacts' or floating lights. This must look like a real interior design photograph.
+
+Fill the entire canvas. No borders, no padding.`;
 
       const TIMEOUT_MS = 90000;
       let aiResponse;
