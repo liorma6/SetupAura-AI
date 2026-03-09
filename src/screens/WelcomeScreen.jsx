@@ -6,16 +6,15 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   `${window.location.protocol}//${window.location.hostname}:3000`;
 const emptyOtp = ["", "", "", "", "", ""];
+const showcasePairs = [
+  { before: "/beforeLior.webp", after: "/afterLior.webp" },
+  { before: "/Before2.webp", after: "/After2.webp" },
+  { before: "/Before3.webp", after: "/After3.webp" },
+];
 
 export const WelcomeScreen = ({ onStart }) => {
   const { verifiedEmail, setVerifiedEmail, setTokensRemaining, setIsPremium } =
     useApp();
-
-  const showcasePairs = [
-    { before: "/beforeLior.jpeg", after: "/afterLior.png" },
-    { before: "/Before2.png", after: "/After2.png" },
-    { before: "/Before3.png", after: "/After3.png" },
-  ];
 
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [step, setStep] = useState("email");
@@ -86,6 +85,16 @@ export const WelcomeScreen = ({ onStart }) => {
     window.addEventListener("open-sign-in", handleOpenSignIn);
     return () => window.removeEventListener("open-sign-in", handleOpenSignIn);
   }, [verifiedEmail]);
+
+  useEffect(() => {
+    showcasePairs.forEach(({ before, after }) => {
+      const beforeImage = new Image();
+      beforeImage.src = before;
+
+      const afterImage = new Image();
+      afterImage.src = after;
+    });
+  }, []);
 
   const requestOtp = async (email) => {
     setSendingOtp(true);
@@ -272,9 +281,12 @@ export const WelcomeScreen = ({ onStart }) => {
                 </p>
                 <div className="relative aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden border border-white/15 bg-black/50">
                   <img
+                    key={`before-${currentIndex}`}
                     src={showcasePairs[currentIndex].before}
                     alt="Room before transformation"
-                    className="w-full h-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                    className="w-full h-full object-cover transition-opacity duration-200 ease-out"
                   />
                 </div>
               </div>
@@ -284,9 +296,12 @@ export const WelcomeScreen = ({ onStart }) => {
                 </p>
                 <div className="relative aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden border border-cyan-300/30 bg-black/50">
                   <img
+                    key={`after-${currentIndex}`}
                     src={showcasePairs[currentIndex].after}
                     alt="Room after transformation"
-                    className="w-full h-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                    className="w-full h-full object-cover transition-opacity duration-200 ease-out"
                   />
                 </div>
               </div>
