@@ -186,6 +186,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [fileError, setFileError] = useState("");
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   const cameraInputRef = useRef(null);
   const uploadInputRef = useRef(null);
@@ -202,6 +203,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   }, []);
 
   const handleFileSelect = async (e) => {
+    setIsProcessingFile(true);
     const input = e.target;
     const file = input.files?.[0];
 
@@ -226,7 +228,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
       if (isHeicOrHeif(file)) {
         setFileError(
-          "HEIC/HEIF is not fully supported here. Please convert to JPG or PNG and try again.",
+          "iPhone HEIC format detected. Please take a photo directly or upload a JPG/PNG.",
         );
         return;
       }
@@ -245,6 +247,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
         );
       }
     } finally {
+      setIsProcessingFile(false);
       input.value = "";
       input.blur?.();
       clearPickerFocusState();
@@ -447,20 +450,37 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
             <div className="w-full aspect-[4/5] bg-black/40 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border border-dashed border-white/20 transition-colors hover:border-primary/30">
               {!preview ? (
                 <div
-                  onClick={triggerUploadInput}
+                  onClick={isProcessingFile ? undefined : triggerUploadInput}
                   style={{
                     WebkitTapHighlightColor: "transparent",
                     touchAction: "manipulation",
                   }}
-                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
+                  className={`w-full h-full flex flex-col items-center justify-center transition-colors ${
+                    isProcessingFile
+                      ? "cursor-wait bg-white/5"
+                      : "cursor-pointer hover:bg-white/5"
+                  }`}
                 >
-                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
-                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-primary transition-colors" />
-                  </div>
+                  {isProcessingFile ? (
+                    <>
+                      <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                      </div>
+                      <p className="text-gray-300 font-medium">
+                        Processing image...
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
+                        <Upload className="w-8 h-8 text-gray-400 group-hover:text-primary transition-colors" />
+                      </div>
 
-                  <p className="text-gray-300 font-medium">
-                    Tap to upload image
-                  </p>
+                      <p className="text-gray-300 font-medium">
+                        Tap to upload image
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="w-full relative flex justify-center bg-gray-900/50">
@@ -486,11 +506,16 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onClick={triggerCameraInput}
+                disabled={isProcessingFile}
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   touchAction: "manipulation",
                 }}
-                className="w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wider relative overflow-hidden font-display bg-transparent border-2 border-primary text-primary shadow-[0_0_10px_rgba(191,0,255,0.3)] hover:bg-primary/10 hover:shadow-neon-purple"
+                className={`w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wider relative overflow-hidden font-display bg-transparent border-2 border-primary text-primary shadow-[0_0_10px_rgba(191,0,255,0.3)] ${
+                  isProcessingFile
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-primary/10 hover:shadow-neon-purple"
+                }`}
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   <Camera className="w-4 h-4" />
@@ -501,11 +526,16 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               <button
                 type="button"
                 onClick={triggerUploadInput}
+                disabled={isProcessingFile}
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   touchAction: "manipulation",
                 }}
-                className="w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wider relative overflow-hidden font-display bg-transparent border-2 border-primary text-primary shadow-[0_0_10px_rgba(191,0,255,0.3)] hover:bg-primary/10 hover:shadow-neon-purple"
+                className={`w-full py-4 rounded-xl font-bold text-lg uppercase tracking-wider relative overflow-hidden font-display bg-transparent border-2 border-primary text-primary shadow-[0_0_10px_rgba(191,0,255,0.3)] ${
+                  isProcessingFile
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-primary/10 hover:shadow-neon-purple"
+                }`}
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   <ImageIcon className="w-4 h-4" />
