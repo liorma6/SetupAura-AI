@@ -110,7 +110,7 @@ export const ThemesScreen = () => {
             Pick Your Style
           </h2>
           <p className="text-gray-400 text-sm mt-1 font-medium">
-            Double-click a theme to select and generate instantly.
+            Select a theme to start. Premium themes require an upgrade.
           </p>
         </header>
 
@@ -121,15 +121,19 @@ export const ThemesScreen = () => {
             return (
               <motion.button
                 key={theme.id}
-                onClick={() => !theme.isLocked && setLocalSelection(theme.id)}
-                onDoubleClick={() => !theme.isLocked && handleNext(theme.id)}
+                onClick={() =>
+                  theme.isLocked ? setScreen("pricing") : setLocalSelection(theme.id)
+                }
+                onDoubleClick={() =>
+                  theme.isLocked ? setScreen("pricing") : handleNext(theme.id)
+                }
                 whileHover={!theme.isLocked ? { scale: 1.02 } : {}}
                 whileTap={!theme.isLocked ? { scale: 0.97 } : {}}
                 className={`group relative aspect-[4/5] overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
                   isSelected
                     ? "border-primary shadow-[0_0_25px_rgba(168,85,247,0.4)] z-10 scale-[1.03]"
                     : "border-white/5 hover:border-white/20"
-                } ${theme.isLocked ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
+                } ${theme.isLocked ? "opacity-60 grayscale-[0.5]" : "cursor-pointer"}`}
               >
                 <img
                   src={theme.image}
