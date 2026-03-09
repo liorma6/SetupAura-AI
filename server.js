@@ -92,7 +92,7 @@ setInterval(async () => {
           // Send the email
           const emailHtml = `
         <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;border:1px solid #3b0764;">
-            <h2 style="color:#a855f7;margin-top:0;">Your Room Misses You! 🎮</h2>
+            <h2 style="color:#a855f7;margin-top:0;">Your Room Misses You!</h2>
             <p style="color:#ccc;">Hey there, we noticed you generated your room design but haven't unlocked your 10 additional premium designs and exact-match shopping list yet.</p>
             <p style="color:#ccc;">Just a quick reminder: our <strong>Launch Sale</strong> is currently active, meaning you can still unlock the full experience at the discounted price you saw on the site!</p>
             <div style="margin:24px 0;text-align:center;">
@@ -104,7 +104,7 @@ setInterval(async () => {
             .sendMail({
               from: '"SetupAura AI" <support@setupaura.online>',
               to: lead.email,
-              subject: "Your Shopping List & Premium Designs Are Waiting 🎁",
+              subject: "Your SetupAura AI Room Design is Saved",
               html: emailHtml,
             })
             .catch((err) =>
@@ -1035,7 +1035,7 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
             .sendMail({
               from: '"SetupAura AI" <support@setupaura.online>',
               to: email.trim(),
-              subject: "Your AI Design is Here! ✨ (See your room upgrade)",
+              subject: "Your SetupAura AI Room Design is Ready",
               html: regularEmailBody,
               attachments: [
                 {
@@ -1685,7 +1685,7 @@ app.get("/api/test-email", async (req, res) => {
   try {
     const emailHtml = `
         <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;border:1px solid #3b0764;">
-            <h2 style="color:#a855f7;margin-top:0;">Your Room Misses You! 🎮</h2>
+            <h2 style="color:#a855f7;margin-top:0;">Your Room Misses You!</h2>
             <p style="color:#ccc;">Hey there, we noticed you generated your room design but haven't unlocked your 10 additional premium designs and exact-match shopping list yet.</p>
             <p style="color:#ccc;">Just a quick reminder: our <strong>Launch Sale</strong> is currently active, meaning you can still unlock the full experience at the discounted price you saw on the site!</p>
             <div style="margin:24px 0;text-align:center;">
@@ -1696,7 +1696,7 @@ app.get("/api/test-email", async (req, res) => {
     await transporter.sendMail({
       from: '"SetupAura AI" <support@setupaura.online>',
       to: ADMIN_EMAIL,
-      subject: "Your Shopping List & Premium Designs Are Waiting 🎁",
+      subject: "Your SetupAura AI Room Design is Saved",
       html: emailHtml,
     });
     res.json({ success: true, message: "Test email sent to " + ADMIN_EMAIL });
