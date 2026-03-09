@@ -102,7 +102,7 @@ setInterval(async () => {
         </div>`;
           await transporter
             .sendMail({
-              from: '"SetupAura AI" <support@setupaura.online>',
+              from: '"Lior | SetupAura" <support@setupaura.online>',
               to: lead.email,
               subject: "Your SetupAura AI Room Design is Saved",
               html: emailHtml,
@@ -1033,7 +1033,7 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
             </div>`;
           transporter
             .sendMail({
-              from: '"SetupAura AI" <support@setupaura.online>',
+              from: '"Lior | SetupAura" <support@setupaura.online>',
               to: email.trim(),
               subject: "Your SetupAura AI Room Design is Ready",
               html: regularEmailBody,
@@ -1116,7 +1116,7 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
                     </div>
                 </div>`;
               await transporter.sendMail({
-                from: '"SetupAura AI" <support@setupaura.online>',
+                from: '"Lior | SetupAura" <support@setupaura.online>',
                 to: email.trim(),
                 subject: "Your Full Design + Shopping List",
                 html: adminEmailBody,
@@ -1342,7 +1342,7 @@ const requestOtpHandler = async (req, res) => {
   });
   try {
     await transporter.sendMail({
-      from: '"SetupAura AI" <support@setupaura.online>',
+      from: '"Lior | SetupAura" <support@setupaura.online>',
       to: email.trim(),
       subject: "Your SetupAura Verification Code",
       html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0d0d0d;color:#fff;padding:40px;border-radius:12px;border:1px solid #3b0764;">
@@ -1694,7 +1694,7 @@ app.get("/api/test-email", async (req, res) => {
             <p style="color:#9ca3af;font-size:12px;">Happy gaming,<br/>The SetupAura AI Team</p>
         </div>`;
     await transporter.sendMail({
-      from: '"SetupAura AI" <support@setupaura.online>',
+      from: '"Lior | SetupAura" <support@setupaura.online>',
       to: ADMIN_EMAIL,
       subject: "Your SetupAura AI Room Design is Saved",
       html: emailHtml,
