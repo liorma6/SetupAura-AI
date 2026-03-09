@@ -162,7 +162,6 @@ const uploadStorage = multer.diskStorage({
 });
 const upload = multer({ storage: uploadStorage });
 const leadsPath = path.join(__dirname, "leads.json");
-const WATERMARK_LOGO_PATH = path.join(__dirname, "public", "logo.svg");
 const ADMIN_EMAIL = "liorma6@gmail.com";
 const shoppingListGenerationLocks = new Map();
 
@@ -700,17 +699,26 @@ const ensureShoppingListForResult = async ({
 
 const applyWatermarkForFreeUser = async (imageBuffer) => {
   const metadata = await sharp(imageBuffer).metadata();
-  const baseWidth = Math.max(metadata.width || 1024, 1);
-  const watermarkWidth = Math.max(Math.round(baseWidth * 0.16), 96);
-  const logoBuffer = fs.readFileSync(WATERMARK_LOGO_PATH);
-  const watermarkBuffer = await sharp(logoBuffer)
-    .resize({ width: watermarkWidth, fit: "contain" })
-    .ensureAlpha(0.35)
-    .png()
-    .toBuffer();
+  const width = metadata.width || 1024;
+  const height = metadata.height || 1024;
+  const fontSize = Math.round(width * 0.035);
+  const svgText = `
+    <svg width="${width}" height="${height}">
+      <style>
+        .title {
+          fill: rgba(255, 255, 255, 0.65);
+          font-size: ${fontSize}px;
+          font-family: sans-serif;
+          font-weight: bold;
+        }
+      </style>
+      <text x="98%" y="98%" text-anchor="end" class="title">SetupAura-Ai</text>
+    </svg>
+  `;
+  const watermarkBuffer = Buffer.from(svgText);
 
   return sharp(imageBuffer)
-    .composite([{ input: watermarkBuffer, gravity: "southeast" }])
+    .composite([{ input: watermarkBuffer, top: 0, left: 0 }])
     .jpeg({ quality: 92 })
     .toBuffer();
 };
@@ -1027,7 +1035,7 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
             .sendMail({
               from: '"SetupAura AI" <support@setupaura.online>',
               to: email.trim(),
-              subject: "Your Design Is Ready + Unlock Shopping List",
+              subject: "Your AI Design is Here! ✨ (See your room upgrade)",
               html: regularEmailBody,
               attachments: [
                 {
