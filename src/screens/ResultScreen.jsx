@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Lock, Sparkles, ShoppingBag } from "lucide-react";
+import { Lock, Sparkles, ShoppingBag, X, ZoomIn } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 const API_URL =
@@ -118,9 +118,12 @@ export const ResultScreen = () => {
   const [linkUnlocked, setLinkUnlocked] = useState(false);
   const [orientation, setOrientation] = useState("landscape");
   const [resultOrientation, setResultOrientation] = useState("portrait");
+  const [isEnlarged, setIsEnlarged] = useState(false);
+  const [showZoomHint, setShowZoomHint] = useState(true);
 
   const preloadRequestRef = useRef(0);
   const initializedRef = useRef(false);
+  const lastTapRef = useRef(0);
 
   const hasUnlockedAccess = Boolean(isPremium || linkUnlocked);
 
@@ -308,6 +311,30 @@ export const ResultScreen = () => {
     };
   }, [displayImageUrl]);
 
+  useEffect(() => {
+    if (!displayImageUrl) return;
+    setShowZoomHint(true);
+
+    const timer = window.setTimeout(() => {
+      setShowZoomHint(false);
+    }, 3500);
+
+    return () => window.clearTimeout(timer);
+  }, [displayImageUrl]);
+
+  useEffect(() => {
+    if (!isEnlarged) return;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsEnlarged(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isEnlarged]);
+
   const handleSubmitReview = async () => {
     if (rating === 0) {
       alert("Please select a star rating first.");
@@ -330,6 +357,20 @@ export const ResultScreen = () => {
 
   const handleViewShoppingList = () => {
     if (!hasUnlockedAccess) setScreen("pricing");
+  };
+
+  const openEnlargedImage = () => {
+    if (!displayImageUrl || resultLoading || imageLoading || resultError) return;
+    setShowZoomHint(false);
+    setIsEnlarged(true);
+  };
+
+  const handleResultImageTouchEnd = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      openEnlargedImage();
+    }
+    lastTapRef.current = now;
   };
 
   const handleAnotherDesign = async () => {
@@ -415,11 +456,23 @@ export const ResultScreen = () => {
                 !imageLoading &&
                 !resultLoading &&
                 !resultError && (
-                  <img
-                    src={displayImageUrl}
-                    className="w-full h-full object-contain"
-                    alt="AI Result"
-                  />
+                  <>
+                    <img
+                      src={displayImageUrl}
+                      className="w-full h-full object-contain cursor-zoom-in"
+                      alt="AI Result"
+                      onDoubleClick={openEnlargedImage}
+                      onTouchEnd={handleResultImageTouchEnd}
+                    />
+                    {showZoomHint && (
+                      <div className="absolute bottom-3 right-3 rounded-full border border-white/10 bg-black/65 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white/80 backdrop-blur-sm">
+                        <span className="inline-flex items-center gap-1">
+                          <ZoomIn className="w-3 h-3" />
+                          Double-tap to enlarge
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               {!resultError && (resultLoading || imageLoading) && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40">
@@ -498,6 +551,32 @@ export const ResultScreen = () => {
         setReviewText={setReviewText}
         onSubmit={handleSubmitReview}
       />
+
+      {isEnlarged && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setIsEnlarged(false)}
+        >
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsEnlarged(false);
+            }}
+            className="absolute top-4 right-4 p-2 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors"
+            aria-label="Close enlarged image"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <img
+            src={displayImageUrl}
+            alt="Enlarged AI Result"
+            className="max-w-full max-h-full object-contain"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
