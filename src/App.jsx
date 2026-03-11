@@ -247,6 +247,8 @@ const InnerApp = () => {
       }
       if (typeof window !== "undefined" && window.posthog) {
         window.posthog.capture("Lead");
+        const userEmail = pendingEmail.trim();
+        window.posthog.identify(userEmail, { email: userEmail });
       }
       const normalizedEmail = (data?.email || pendingEmail || "")
         .trim()
@@ -487,6 +489,18 @@ const InnerApp = () => {
                 </div>
               </div>
             )}
+            <div className="mt-6 pt-4 border-t border-white/10 text-center">
+              <button
+                onClick={() => {
+                  closeSignIn();
+                  setScreen("pricing");
+                }}
+                className="text-xs text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 w-full"
+              >
+                Want to unlock all styles?{" "}
+                <span className="text-purple-400 font-bold">Get Premium ✨</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,11 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Sparkles, X, ShieldCheck, RotateCcw } from "lucide-react";
-import { useApp } from "../context/AppContext";
-
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  `${window.location.protocol}//${window.location.hostname}:3000`;
-const emptyOtp = ["", "", "", "", "", ""];
+import { useState, useEffect } from "react";
+import { Sparkles } from "lucide-react";
 const showcasePairs = [
   { before: "/beforeLior.webp", after: "/afterLior.webp" },
   { before: "/Before2.webp", after: "/After2.webp" },
@@ -13,83 +7,7 @@ const showcasePairs = [
 ];
 
 export const WelcomeScreen = ({ onStart }) => {
-  const {
-    verifiedEmail,
-    setVerifiedEmail,
-    setTokensRemaining,
-    setIsPremium,
-    setScreen,
-  } = useApp();
-
-  const [isSignInOpen, setIsSignInOpen] = useState(false);
-  const [step, setStep] = useState("email");
-  const [emailInput, setEmailInput] = useState("");
-  const [pendingEmail, setPendingEmail] = useState("");
-  const [otpDigits, setOtpDigits] = useState(emptyOtp);
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [otpCooldown, setOtpCooldown] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  const cooldownRef = useRef(null);
-  const otpRefs = useRef([]);
-
-  const closeSignIn = () => {
-    setIsSignInOpen(false);
-    setStep("email");
-    setPendingEmail("");
-    setOtpDigits(emptyOtp);
-    setAuthError("");
-    setSendingOtp(false);
-    setVerifyingOtp(false);
-    setOtpCooldown(0);
-    if (cooldownRef.current) {
-      clearInterval(cooldownRef.current);
-      cooldownRef.current = null;
-    }
-  };
-
-  const openSignIn = () => {
-    setEmailInput((verifiedEmail || "").trim());
-    setAuthError("");
-    setStep("email");
-    setIsSignInOpen(true);
-  };
-
-  const startCooldown = () => {
-    if (cooldownRef.current) {
-      clearInterval(cooldownRef.current);
-      cooldownRef.current = null;
-    }
-    setOtpCooldown(30);
-    cooldownRef.current = setInterval(() => {
-      setOtpCooldown((prev) => {
-        if (prev <= 1) {
-          if (cooldownRef.current) {
-            clearInterval(cooldownRef.current);
-            cooldownRef.current = null;
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (cooldownRef.current) {
-        clearInterval(cooldownRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleOpenSignIn = () => openSignIn();
-    window.addEventListener("open-sign-in", handleOpenSignIn);
-    return () => window.removeEventListener("open-sign-in", handleOpenSignIn);
-  }, [verifiedEmail]);
 
   useEffect(() => {
     showcasePairs.forEach(({ before, after }) => {
@@ -99,129 +17,6 @@ export const WelcomeScreen = ({ onStart }) => {
       afterImage.src = after;
     });
   }, []);
-
-  const requestOtp = async (email) => {
-    setSendingOtp(true);
-    setAuthError("");
-    try {
-      const res = await fetch(`${API_URL}/api/auth/request-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || data?.error || "Failed to send code");
-      }
-      setPendingEmail(email);
-      setOtpDigits(emptyOtp);
-      setStep("otp");
-      startCooldown();
-      setTimeout(() => otpRefs.current[0]?.focus(), 0);
-    } catch (err) {
-      setAuthError(err.message || "Failed to send code");
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    const email = emailInput.trim().toLowerCase();
-    if (!email) return;
-    await requestOtp(email);
-  };
-
-  const handleResendOtp = async () => {
-    if (!pendingEmail || otpCooldown > 0 || sendingOtp) return;
-    await requestOtp(pendingEmail);
-  };
-
-  const handleOtpDigitChange = (index, value) => {
-    const char = value.replace(/\D/g, "").slice(-1);
-    const next = [...otpDigits];
-    next[index] = char;
-    setOtpDigits(next);
-    setAuthError("");
-    if (char && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, 6);
-    const next = [...emptyOtp];
-    for (let i = 0; i < 6; i++) {
-      next[i] = pasted[i] || "";
-    }
-    setOtpDigits(next);
-    setAuthError("");
-    otpRefs.current[Math.min(pasted.length, 5)]?.focus();
-  };
-
-  const handleVerifyOtp = async () => {
-    const code = otpDigits.join("");
-    if (code.length < 6) {
-      setAuthError("Please enter the full 6-digit code.");
-      return;
-    }
-    setVerifyingOtp(true);
-    setAuthError("");
-    try {
-      const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail, code }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || data?.error || "Verification failed");
-      }
-
-      try {
-        if (typeof window !== "undefined" && window.fbq) {
-          window.fbq("track", "Lead");
-        }
-        if (typeof window !== "undefined" && window.posthog) {
-          window.posthog.capture("Lead");
-          const userEmail = pendingEmail.trim();
-          window.posthog.identify(userEmail, { email: userEmail });
-        }
-      } catch (err) {
-        console.warn("Tracking skipped or not initialized", err);
-      }
-
-      const normalizedEmail = (data?.email || pendingEmail || "")
-        .trim()
-        .toLowerCase();
-      const tokens = Math.max(0, Number(data?.tokensRemaining) || 0);
-      const premium = Boolean(data?.isPremium);
-
-      setVerifiedEmail(normalizedEmail);
-      setTokensRemaining(tokens);
-      setIsPremium(premium);
-
-      try {
-        localStorage.setItem("setupaura_email", normalizedEmail);
-      } catch {}
-
-      closeSignIn();
-    } catch (err) {
-      setAuthError(err.message || "Verification failed");
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
 
   const handleNextPair = () => {
     setCurrentIndex((prev) => (prev + 1) % showcasePairs.length);
@@ -248,11 +43,9 @@ export const WelcomeScreen = ({ onStart }) => {
 
         <div className="relative z-10 flex flex-col items-center w-full max-w-md">
           <div className="mb-10">
-            <img
-              src="/logo.png"
-              alt="SetupAura AI Logo"
-              className="w-24 h-24 mb-4 drop-shadow-[0_0_15px_rgba(191,0,255,0.8)] object-contain mx-auto"
-            />
+            <h1 className="text-5xl sm:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-4 drop-shadow-[0_0_20px_rgba(191,0,255,0.6)]">
+              SetupAura
+            </h1>
             <p className="text-gray-300 text-base sm:text-lg uppercase tracking-[0.2em] font-bold">
               Design Your Dream Room.
               <br />
@@ -340,120 +133,6 @@ export const WelcomeScreen = ({ onStart }) => {
         </div>
       </section>
 
-      {isSignInOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1020] p-5">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-white font-black tracking-wide text-lg">
-                Sign In
-              </h3>
-              <button
-                onClick={closeSignIn}
-                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-300" />
-              </button>
-            </div>
-
-            {step === "email" ? (
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 outline-none"
-                />
-                {authError && (
-                  <p className="text-red-400 text-sm">{authError}</p>
-                )}
-                <button
-                  type="submit"
-                  disabled={sendingOtp}
-                  className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:scale-[1.01] active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {sendingOtp ? "Sending Code..." : "Send 6-Digit Code"}
-                </button>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-purple-300">
-                  <ShieldCheck className="w-4 h-4" />
-                  <p className="text-sm font-semibold break-all">
-                    {pendingEmail}
-                  </p>
-                </div>
-
-                <div className="flex gap-2.5" onPaste={handleOtpPaste}>
-                  {otpDigits.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => (otpRefs.current[i] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpDigitChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="w-full h-12 text-center text-xl font-bold rounded-xl border border-white/15 bg-white/5 text-white outline-none focus:border-purple-500"
-                    />
-                  ))}
-                </div>
-
-                {authError && (
-                  <p className="text-red-400 text-sm">{authError}</p>
-                )}
-
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={verifyingOtp || otpDigits.join("").length < 6}
-                  className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:scale-[1.01] active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {verifyingOtp ? "Verifying..." : "Verify & Sign In"}
-                </button>
-
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <button
-                    onClick={handleResendOtp}
-                    disabled={otpCooldown > 0 || sendingOtp}
-                    className="inline-flex items-center gap-1 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    {otpCooldown > 0
-                      ? `Resend in ${otpCooldown}s`
-                      : "Resend Code"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setStep("email");
-                      setAuthError("");
-                    }}
-                    className="hover:text-white"
-                  >
-                    Change Email
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 pt-4 border-t border-white/10 text-center">
-              <button
-                onClick={() => {
-                  closeSignIn();
-                  setScreen("pricing");
-                }}
-                className="text-xs text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 w-full"
-              >
-                Want to unlock all styles?{" "}
-                <span className="text-purple-400 font-bold">
-                  Get Premium ✨
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
