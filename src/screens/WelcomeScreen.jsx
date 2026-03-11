@@ -355,7 +355,6 @@ export const WelcomeScreen = ({ onStart }) => {
                 <X className="w-4 h-4 text-gray-300" />
               </button>
             </div>
-
             {step === "email" ? (
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 <input
@@ -366,9 +365,7 @@ export const WelcomeScreen = ({ onStart }) => {
                   required
                   className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 outline-none"
                 />
-                {authError && (
-                  <p className="text-red-400 text-sm">{authError}</p>
-                )}
+                {authError && <p className="text-red-400 text-sm">{authError}</p>}
                 <button
                   type="submit"
                   disabled={sendingOtp}
@@ -385,7 +382,6 @@ export const WelcomeScreen = ({ onStart }) => {
                     {pendingEmail}
                   </p>
                 </div>
-
                 <div className="flex gap-2.5" onPaste={handleOtpPaste}>
                   {otpDigits.map((digit, i) => (
                     <input
@@ -401,11 +397,7 @@ export const WelcomeScreen = ({ onStart }) => {
                     />
                   ))}
                 </div>
-
-                {authError && (
-                  <p className="text-red-400 text-sm">{authError}</p>
-                )}
-
+                {authError && <p className="text-red-400 text-sm">{authError}</p>}
                 <button
                   onClick={handleVerifyOtp}
                   disabled={verifyingOtp || otpDigits.join("").length < 6}
@@ -413,7 +405,6 @@ export const WelcomeScreen = ({ onStart }) => {
                 >
                   {verifyingOtp ? "Verifying..." : "Verify & Sign In"}
                 </button>
-
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <button
                     onClick={handleResendOtp}
@@ -437,7 +428,6 @@ export const WelcomeScreen = ({ onStart }) => {
                 </div>
               </div>
             )}
-
             <div className="mt-6 pt-4 border-t border-white/10 text-center">
               <button
                 onClick={() => {
