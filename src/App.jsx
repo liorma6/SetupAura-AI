@@ -399,8 +399,14 @@ const InnerApp = () => {
 
       {/* Global Sign In Modal */}
       {isSignInOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1020] p-5">
+        <div
+          onClick={closeSignIn}
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1020] p-5"
+          >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-white font-black tracking-wide text-lg">
                 Sign In
