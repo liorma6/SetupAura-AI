@@ -95,7 +95,6 @@ export const WelcomeScreen = ({ onStart }) => {
     showcasePairs.forEach(({ before, after }) => {
       const beforeImage = new Image();
       beforeImage.src = before;
-
       const afterImage = new Image();
       afterImage.src = after;
     });
@@ -188,12 +187,11 @@ export const WelcomeScreen = ({ onStart }) => {
       if (!res.ok) {
         throw new Error(data?.message || data?.error || "Verification failed");
       }
+
       try {
-        // Facebook Pixel Tracking
         if (typeof window !== "undefined" && window.fbq) {
           window.fbq("track", "Lead");
         }
-        // PostHog Tracking & Identification
         if (typeof window !== "undefined" && window.posthog) {
           window.posthog.capture("Lead");
           const userEmail = pendingEmail.trim();
@@ -250,9 +248,11 @@ export const WelcomeScreen = ({ onStart }) => {
 
         <div className="relative z-10 flex flex-col items-center w-full max-w-md">
           <div className="mb-10">
-            <h1 className="text-5xl sm:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-4 drop-shadow-[0_0_20px_rgba(191,0,255,0.6)]">
-              SetupAura
-            </h1>
+            <img
+              src="/logo.png"
+              alt="SetupAura AI Logo"
+              className="w-24 h-24 mb-4 drop-shadow-[0_0_15px_rgba(191,0,255,0.8)] object-contain mx-auto"
+            />
             <p className="text-gray-300 text-base sm:text-lg uppercase tracking-[0.2em] font-bold">
               Design Your Dream Room.
               <br />
@@ -286,7 +286,6 @@ export const WelcomeScreen = ({ onStart }) => {
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 md:p-5">
-            {/* THIS IS THE MAGIC LINE: flex-row ensures side-by-side everywhere */}
             <div className="flex flex-row gap-2 md:gap-5">
               <div className="w-1/2 min-w-0">
                 <p className="mb-2 text-[10px] font-bold tracking-[0.2em] text-gray-300 uppercase">
@@ -355,6 +354,7 @@ export const WelcomeScreen = ({ onStart }) => {
                 <X className="w-4 h-4 text-gray-300" />
               </button>
             </div>
+
             {step === "email" ? (
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 <input
@@ -365,7 +365,9 @@ export const WelcomeScreen = ({ onStart }) => {
                   required
                   className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 outline-none"
                 />
-                {authError && <p className="text-red-400 text-sm">{authError}</p>}
+                {authError && (
+                  <p className="text-red-400 text-sm">{authError}</p>
+                )}
                 <button
                   type="submit"
                   disabled={sendingOtp}
@@ -382,6 +384,7 @@ export const WelcomeScreen = ({ onStart }) => {
                     {pendingEmail}
                   </p>
                 </div>
+
                 <div className="flex gap-2.5" onPaste={handleOtpPaste}>
                   {otpDigits.map((digit, i) => (
                     <input
@@ -397,7 +400,11 @@ export const WelcomeScreen = ({ onStart }) => {
                     />
                   ))}
                 </div>
-                {authError && <p className="text-red-400 text-sm">{authError}</p>}
+
+                {authError && (
+                  <p className="text-red-400 text-sm">{authError}</p>
+                )}
+
                 <button
                   onClick={handleVerifyOtp}
                   disabled={verifyingOtp || otpDigits.join("").length < 6}
@@ -405,6 +412,7 @@ export const WelcomeScreen = ({ onStart }) => {
                 >
                   {verifyingOtp ? "Verifying..." : "Verify & Sign In"}
                 </button>
+
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <button
                     onClick={handleResendOtp}
@@ -428,6 +436,7 @@ export const WelcomeScreen = ({ onStart }) => {
                 </div>
               </div>
             )}
+
             <div className="mt-6 pt-4 border-t border-white/10 text-center">
               <button
                 onClick={() => {
@@ -437,7 +446,9 @@ export const WelcomeScreen = ({ onStart }) => {
                 className="text-xs text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 w-full"
               >
                 Want to unlock all styles?{" "}
-                <span className="text-purple-400 font-bold">Get Premium ✨</span>
+                <span className="text-purple-400 font-bold">
+                  Get Premium ✨
+                </span>
               </button>
             </div>
           </div>
