@@ -6,7 +6,6 @@ import {
   RotateCcw,
   CheckCircle,
 } from "lucide-react";
-import posthog from "posthog-js";
 import { useApp } from "../context/AppContext";
 
 const API_URL =
@@ -470,11 +469,18 @@ export const RecommendationsScreen = () => {
       }
       setOtpLoading(false);
       try {
-        posthog.capture("Lead");
-        const userEmail = pendingEmail.trim();
-        posthog.identify(userEmail, { email: userEmail });
+        // Facebook Pixel Tracking
+        if (typeof window !== "undefined" && window.fbq) {
+          window.fbq("track", "Lead");
+        }
+        // PostHog Tracking & Identification
+        if (typeof window !== "undefined" && window.posthog) {
+          window.posthog.capture("Lead");
+          const userEmail = pendingEmail.trim();
+          window.posthog.identify(userEmail, { email: userEmail });
+        }
       } catch (err) {
-        console.warn("PostHog tracking skipped or not initialized");
+        console.warn("Tracking skipped or not initialized", err);
       }
 
       const verified = pendingEmail.trim();

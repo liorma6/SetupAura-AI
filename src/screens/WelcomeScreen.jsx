@@ -13,8 +13,13 @@ const showcasePairs = [
 ];
 
 export const WelcomeScreen = ({ onStart }) => {
-  const { verifiedEmail, setVerifiedEmail, setTokensRemaining, setIsPremium } =
-    useApp();
+  const {
+    verifiedEmail,
+    setVerifiedEmail,
+    setTokensRemaining,
+    setIsPremium,
+    setScreen,
+  } = useApp();
 
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [step, setStep] = useState("email");
@@ -183,11 +188,19 @@ export const WelcomeScreen = ({ onStart }) => {
       if (!res.ok) {
         throw new Error(data?.message || data?.error || "Verification failed");
       }
-      if (typeof window !== "undefined" && window.fbq) {
-        window.fbq("track", "Lead");
-      }
-      if (typeof window !== "undefined" && window.posthog) {
-        window.posthog.capture("Lead");
+      try {
+        // Facebook Pixel Tracking
+        if (typeof window !== "undefined" && window.fbq) {
+          window.fbq("track", "Lead");
+        }
+        // PostHog Tracking & Identification
+        if (typeof window !== "undefined" && window.posthog) {
+          window.posthog.capture("Lead");
+          const userEmail = pendingEmail.trim();
+          window.posthog.identify(userEmail, { email: userEmail });
+        }
+      } catch (err) {
+        console.warn("Tracking skipped or not initialized", err);
       }
 
       const normalizedEmail = (data?.email || pendingEmail || "")
@@ -424,6 +437,19 @@ export const WelcomeScreen = ({ onStart }) => {
                 </div>
               </div>
             )}
+
+            <div className="mt-6 pt-4 border-t border-white/10 text-center">
+              <button
+                onClick={() => {
+                  closeSignIn();
+                  setScreen("pricing");
+                }}
+                className="text-xs text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 w-full"
+              >
+                Want to unlock all styles?{" "}
+                <span className="text-purple-400 font-bold">Get Premium ✨</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
