@@ -2,7 +2,7 @@ import { Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const Header = ({ onHomeClick, onMenuToggle }) => {
-  const { verifiedEmail, tokensRemaining } = useApp();
+  const { verifiedEmail } = useApp();
 
   const handleSignInClick = () => {
     window.dispatchEvent(new CustomEvent('open-sign-in'));
@@ -25,11 +25,6 @@ export const Header = ({ onHomeClick, onMenuToggle }) => {
           </span>
         </a>
         <div className="flex items-center gap-2">
-          {verifiedEmail && (
-            <div className="px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-300/30 text-[11px] font-bold text-cyan-200">
-              Tokens: {tokensRemaining}
-            </div>
-          )}
           <button
             onClick={handleSignInClick}
             className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] tracking-wide text-gray-200 hover:text-white hover:bg-white/20 transition-colors"
