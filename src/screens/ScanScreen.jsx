@@ -284,7 +284,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
     openFileInput(uploadInputRef);
   }, [openFileInput]);
 
-  const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
+  const getCroppedImg = async (imageSrc, pixelCrop) => {
     const image = new Image();
     image.src = imageSrc;
 
@@ -299,10 +299,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
     canvas.width = safeArea;
     canvas.height = safeArea;
-
-    ctx.translate(safeArea / 2, safeArea / 2);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.translate(-safeArea / 2, -safeArea / 2);
 
     ctx.drawImage(
       image,
@@ -330,11 +326,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
 
   const confirmCrop = async () => {
     try {
-      const croppedImage = await getCroppedImg(
-        preview,
-        croppedAreaPixels,
-        rotation,
-      );
+      const croppedImage = await getCroppedImg(preview, croppedAreaPixels);
 
       setUploadedImage(croppedImage);
       setShowCropper(false);
