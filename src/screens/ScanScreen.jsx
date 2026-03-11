@@ -186,6 +186,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [isAgreed, setIsAgreed] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
 
   const cameraInputRef = useRef(null);
   const uploadInputRef = useRef(null);
@@ -287,51 +288,45 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const getCroppedImg = async (imageSrc, pixelCrop) => {
     const image = new Image();
     image.src = imageSrc;
-
     await new Promise((resolve) => {
       image.onload = resolve;
     });
 
     const canvas = document.createElement("canvas");
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
     const ctx = canvas.getContext("2d");
-    const maxSize = Math.max(image.width, image.height);
-    const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
-
-    canvas.width = safeArea;
-    canvas.height = safeArea;
 
     ctx.drawImage(
       image,
-      safeArea / 2 - image.width * 0.5,
-      safeArea / 2 - image.height * 0.5,
-    );
-
-    const data = ctx.getImageData(
-      safeArea / 2 - image.width * 0.5 + pixelCrop.x,
-      safeArea / 2 - image.height * 0.5 + pixelCrop.y,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
       pixelCrop.width,
       pixelCrop.height,
     );
 
-    canvas.width = pixelCrop.width;
-    canvas.height = pixelCrop.height;
-    ctx.putImageData(data, 0, 0);
-
     return new Promise((resolve) => {
       canvas.toBlob((file) => {
         resolve(URL.createObjectURL(file));
-      }, "image/jpeg");
+      }, "image/jpeg", 0.9);
     });
   };
 
   const confirmCrop = async () => {
     try {
+      setIsCropping(true);
       const croppedImage = await getCroppedImg(preview, croppedAreaPixels);
 
       setUploadedImage(croppedImage);
       setShowCropper(false);
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsCropping(false);
     }
   };
 
@@ -411,9 +406,23 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               />
             </div>
 
-            <Button variant="primary" onClick={confirmCrop} className="w-full">
-              <Check className="w-5 h-5" />
-              Done Adjusting
+            <Button
+              variant="primary"
+              onClick={confirmCrop}
+              disabled={isCropping}
+              className="w-full"
+            >
+              {isCropping ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Adjusting...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  Done Adjusting
+                </>
+              )}
             </Button>
           </div>
         </div>
