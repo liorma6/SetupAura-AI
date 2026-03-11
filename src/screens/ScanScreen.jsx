@@ -9,7 +9,7 @@ import {
   ArrowLeft,
   Upload,
   ZoomIn,
-  RotateCw,
+  Crop,
   Check,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -180,7 +180,6 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
   const [preview, setPreview] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
   const [fileError, setFileError] = useState("");
@@ -397,12 +396,10 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
               image={preview}
               crop={crop}
               zoom={zoom}
-              rotation={rotation}
               aspect={aspectRatio}
               onCropChange={setCrop}
               onCropComplete={onCropComplete}
               onZoomChange={setZoom}
-              onRotationChange={setRotation}
             />
           </div>
 
@@ -494,7 +491,7 @@ export const ScanScreen = ({ onOpenTerms, onOpenPrivacy }) => {
                     onClick={() => setShowCropper(true)}
                     className="absolute bottom-4 right-4 z-30 bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/20 hover:bg-white/20 transition-colors"
                   >
-                    <RotateCw className="w-5 h-5 text-white" />
+                    <Crop className="w-5 h-5 text-white" />
                   </button>
                 </div>
               )}
