@@ -1777,6 +1777,39 @@ app.get("/api/test-email", async (req, res) => {
   }
 });
 
+app.get("/api/test-result-email", async (req, res) => {
+  try {
+    const targetEmail = req.query.email || ADMIN_EMAIL;
+    const activeTheme = "MODERN GAMING (RGB) TEST";
+    const redirectLink = buildFrontendUrl("/result", { id: "test" });
+
+    const regularEmailBody = `
+      <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
+          <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
+          <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+          <div style="margin:14px 0;padding:60px 20px;background:#1a1a1a;border:2px dashed #3b0764;border-radius:10px;text-align:center;color:#666;">[ Your Generated AI Image Here ]</div>
+          <div style="margin-top:20px;text-align:center;">
+              <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Full Result & Shopping List</a>
+          </div>
+      </div>`;
+
+    await transporter.sendMail({
+      from: '"Lior | SetupAura" <support@setupaura.online>',
+      to: targetEmail,
+      subject: "Your SetupAura AI Room Design is Ready",
+      text: `Your ${activeTheme} room design is ready. Click the link to view your result and exact-match shopping list: ${redirectLink}`,
+      html: regularEmailBody,
+    });
+
+    res.json({
+      success: true,
+      message: "Test 'Design Ready' email sent to " + targetEmail,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to send", details: err.message });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: "NOT_FOUND", message: "Route not found" });
 });
