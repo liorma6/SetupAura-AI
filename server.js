@@ -1094,13 +1094,14 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
 
         if (process.env.EMAIL_USER && email) {
           const regularEmailBody = `
-            <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
-                <h1 style="color:#a855f7;margin:0 0 10px 0;">Your room design is ready</h1>
-                <p style="color:#d1d5db;margin:0 0 16px 0;">I finished your <strong>${activeTheme}</strong> setup. Your image is below.</p>
-                <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
-                <div style="margin-top:20px;text-align:center;">
-                    <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Full Result & Shopping List</a>
-                </div>
+            <div style="font-family: Arial, sans-serif; font-size: 16px; color: #222; max-width: 600px;">
+              <p>Hey,</p>
+              <p>Your <strong>${activeTheme}</strong> room design has finished generating.</p>
+              <p>I've attached a preview of the design below.</p>
+              <p><img src="cid:design_image" alt="Room Design Preview" style="max-width: 100%; border-radius: 8px; margin: 16px 0;" /></p>
+              <p>You can view the high-resolution version and your exact-match item breakdown here:</p>
+              <p><a href="${redirectLink}" style="color: #2563eb; font-weight: bold; font-size: 16px;">👉 Open Your Result</a></p>
+              <p>Enjoy,<br>Lior | SetupAura AI</p>
             </div>`;
           transporter
             .sendMail({
@@ -1178,13 +1179,14 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
 
             if (process.env.EMAIL_USER && email) {
               const adminEmailBody = `
-                <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
-                    <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your premium room design is ready</h1>
-                    <p style="color:#cbd5e1;margin:0 0 16px 0;">I finished your <strong>${activeTheme}</strong> setup. Open the result page to view the design and shopping list.</p>
-                    <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
-                    <div style="margin-top:18px;">
-                        <a href="${redirectLink}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open Your Result</a>
-                    </div>
+                <div style="font-family: Arial, sans-serif; font-size: 16px; color: #222; max-width: 600px;">
+                  <p>Hey,</p>
+                  <p>Your <strong>${activeTheme}</strong> room design has finished generating.</p>
+                  <p>I've attached a preview of the design below.</p>
+                  <p><img src="cid:design_image" alt="Room Design Preview" style="max-width: 100%; border-radius: 8px; margin: 16px 0;" /></p>
+                  <p>You can view the high-resolution version and your exact-match item breakdown here:</p>
+                  <p><a href="${redirectLink}" style="color: #2563eb; font-weight: bold; font-size: 16px;">👉 Open Your Result</a></p>
+                  <p>Enjoy,<br>Lior | SetupAura AI</p>
                 </div>`;
               await transporter.sendMail({
                 from: '"Lior | SetupAura" <support@setupaura.online>',
@@ -1782,15 +1784,18 @@ app.get("/api/test-result-email", async (req, res) => {
     const targetEmail = req.query.email || ADMIN_EMAIL;
     const activeTheme = "MODERN GAMING (RGB) TEST";
     const redirectLink = buildFrontendUrl("/result", { id: "test" });
+    const imgRes = await fetch("https://www.setupaura.online/After2.png");
+    const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
 
     const regularEmailBody = `
-      <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
-          <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
-          <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
-          <div style="margin:14px 0;padding:60px 20px;background:#1a1a1a;border:2px dashed #3b0764;border-radius:10px;text-align:center;color:#666;">[ Your Generated AI Image Here ]</div>
-          <div style="margin-top:20px;text-align:center;">
-              <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Full Result & Shopping List</a>
-          </div>
+      <div style="font-family: Arial, sans-serif; font-size: 16px; color: #222; max-width: 600px;">
+        <p>Hey,</p>
+        <p>Your <strong>${activeTheme}</strong> room design has finished generating.</p>
+        <p>I've attached a preview of the design below.</p>
+        <p><img src="cid:design_image" alt="Room Design Preview" style="max-width: 100%; border-radius: 8px; margin: 16px 0;" /></p>
+        <p>You can view the high-resolution version and your exact-match item breakdown here:</p>
+        <p><a href="${redirectLink}" style="color: #2563eb; font-weight: bold; font-size: 16px;">👉 Open Your Result</a></p>
+        <p>Enjoy,<br>Lior | SetupAura AI</p>
       </div>`;
 
     await transporter.sendMail({
@@ -1799,6 +1804,13 @@ app.get("/api/test-result-email", async (req, res) => {
       subject: "Your SetupAura AI Room Design is Ready",
       text: `Your ${activeTheme} room design is ready. Click the link to view your result and exact-match shopping list: ${redirectLink}`,
       html: regularEmailBody,
+      attachments: [
+        {
+          filename: "test-design.png",
+          content: imgBuffer,
+          cid: "design_image",
+        },
+      ],
     });
 
     res.json({
