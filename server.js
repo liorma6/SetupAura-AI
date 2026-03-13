@@ -894,53 +894,125 @@ Ensure the final result looks like a real, expensive room makeover that a gamer 
 
 DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every item realistic and physically possible.`;
 
-      const TIMEOUT_MS = 90000;
+      const TIMEOUT_MS = 150000;
+      const MAX_IMAGE_EDIT_ATTEMPTS = 3;
+      const RETRY_DELAY_MS = 2000;
       let aiResponse;
+      let timeoutId;
+      const imageEditTimeoutController = new AbortController();
       try {
         aiResponse = await Promise.race([
           (async () => {
-            const formData = new FormData();
-            formData.append("model", "gpt-image-1.5");
-            formData.append("image", imageFile, inputFilename);
-            formData.append("prompt", enhancedPrompt);
-            formData.append("size", size);
-            formData.append("quality", "high");
-            formData.append("input_fidelity", "high");
-            formData.append("output_format", "jpeg");
-            formData.append("output_compression", "90");
+            for (
+              let attempt = 1;
+              attempt <= MAX_IMAGE_EDIT_ATTEMPTS;
+              attempt += 1
+            ) {
+              try {
+                const formData = new FormData();
+                formData.append("model", "gpt-image-1.5");
+                formData.append("image", imageFile, inputFilename);
+                formData.append("prompt", enhancedPrompt);
+                formData.append("size", size);
+                formData.append("quality", "high");
+                formData.append("input_fidelity", "high");
+                formData.append("output_format", "jpeg");
+                formData.append("output_compression", "90");
 
-            const response = await fetch(
-              "https://api.openai.com/v1/images/edits",
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-                body: formData,
-              },
-            );
-            const json = await response.json();
-            if (!response.ok) {
-              throw new Error(
-                json?.error?.message || "OpenAI image edit failed",
-              );
+                const response = await fetch(
+                  "https://api.openai.com/v1/images/edits",
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                    signal: imageEditTimeoutController.signal,
+                  },
+                );
+                const rawBody = await response.text();
+                let json = null;
+                try {
+                  json = rawBody ? JSON.parse(rawBody) : null;
+                } catch {
+                  json = null;
+                }
+
+                if (!response.ok) {
+                  const message =
+                    json?.error?.message || "OpenAI image edit failed";
+                  const error = new Error(message);
+                  error.status = response.status;
+                  throw error;
+                }
+
+                return json;
+              } catch (error) {
+                if (
+                  error.name === "AbortError" &&
+                  imageEditTimeoutController.signal.aborted
+                ) {
+                  throw new Error(
+                    "OpenAI request timed out after 150 seconds",
+                  );
+                }
+
+                const statusCode = Number(error?.status || 0);
+                const isRetryableStatus =
+                  statusCode >= 500 && statusCode < 600;
+                const isClientError =
+                  statusCode >= 400 && statusCode < 500;
+                const message = String(error?.message || "");
+                const isNetworkError =
+                  error instanceof TypeError || /fetch failed/i.test(message);
+                const shouldRetry =
+                  attempt < MAX_IMAGE_EDIT_ATTEMPTS &&
+                  !isClientError &&
+                  (isNetworkError || isRetryableStatus);
+
+                if (!shouldRetry) {
+                  throw error;
+                }
+
+                console.warn(
+                  `[OpenAI] Image edit attempt ${attempt} failed (${message || "unknown error"}). Retrying in ${RETRY_DELAY_MS}ms...`,
+                );
+                await new Promise((resolve) =>
+                  setTimeout(resolve, RETRY_DELAY_MS),
+                );
+              }
             }
-            return json;
           })(),
           new Promise((_, reject) =>
-            setTimeout(
-              () =>
-                reject(new Error("OpenAI request timed out after 90 seconds")),
-              TIMEOUT_MS,
-            ),
+            (timeoutId = setTimeout(() => {
+              imageEditTimeoutController.abort();
+              reject(new Error("OpenAI request timed out after 150 seconds"));
+            }, TIMEOUT_MS)),
           ),
         ]);
       } catch (imageErr) {
         console.error("[IMAGE_GENERATION_ERROR]", imageErr.message);
+        const statusCode = Number(imageErr?.status || 0);
+        if (statusCode >= 400 && statusCode < 500) {
+          return res.status(400).json({
+            error: "SAFETY_SYSTEM_REJECTED",
+            message:
+              imageErr.message ||
+              "Your request was rejected by the safety system. Please try a different image.",
+          });
+        }
+        if (/timed out/i.test(String(imageErr?.message || ""))) {
+          return res.status(504).json({
+            error: "IMAGE_GENERATION_TIMEOUT",
+            message: "Image generation timed out. Please try again.",
+          });
+        }
         return res.status(500).json({
           error: "IMAGE_GENERATION_FAILED",
           message: "Failed to generate image.",
         });
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       if (

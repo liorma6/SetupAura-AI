@@ -27,6 +27,34 @@ const markTrialUsed = () => {
   } catch {}
 };
 
+const getGenerationErrorMessage = (error) => {
+  const message = String(error?.message || "");
+  const responseText = String(
+    error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.response?.message ||
+      "",
+  );
+  const combinedText = `${message} ${responseText}`.toLowerCase();
+
+  if (
+    combinedText.includes("safety") ||
+    combinedText.includes("rejected") ||
+    combinedText.includes("content")
+  ) {
+    return "Our AI couldn't process this image. Please upload a clear photo of a room without people.";
+  }
+
+  if (
+    combinedText.includes("timeout") ||
+    combinedText.includes("timed out")
+  ) {
+    return "The AI is taking too long. Please click try again.";
+  }
+
+  return "Connection lost or server is busy. Please try again.";
+};
+
 export const RecommendationsScreen = () => {
   const {
     uploadedImage,
@@ -300,7 +328,7 @@ export const RecommendationsScreen = () => {
         } else {
           console.error("DEBUG: Error setting up request:", error.message);
         }
-        setError(`Load failed. URL: ${API_URL}/api/generate-design`);
+        setError(getGenerationErrorMessage(error));
         setFlow("email");
       } finally {
         isGeneratingRef.current = false;
@@ -367,7 +395,7 @@ export const RecommendationsScreen = () => {
       } else {
         console.error("DEBUG: Error setting up request:", error.message);
       }
-      setOtpError(`Load failed. URL: ${API_URL}/api/auth/request-otp`);
+      setOtpError("Network error. Please check your connection and try again.");
     } finally {
       setSendingOtp(false);
     }
@@ -407,7 +435,7 @@ export const RecommendationsScreen = () => {
       } else {
         console.error("DEBUG: Error setting up request:", error.message);
       }
-      setOtpError(`Load failed. URL: ${API_URL}/api/auth/request-otp`);
+      setOtpError("Network error. Please check your connection and try again.");
     } finally {
       setSendingOtp(false);
     }
@@ -510,7 +538,7 @@ export const RecommendationsScreen = () => {
       } else {
         console.error("DEBUG: Error setting up request:", error.message);
       }
-      setOtpError(`Load failed. URL: ${API_URL}/api/auth/verify-otp`);
+      setOtpError("Network error. Please check your connection and try again.");
     } finally {
       setOtpLoading(false);
     }
