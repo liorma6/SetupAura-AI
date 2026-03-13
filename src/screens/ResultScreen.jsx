@@ -118,12 +118,11 @@ export const ResultScreen = () => {
   const [linkUnlocked, setLinkUnlocked] = useState(false);
   const [orientation, setOrientation] = useState("landscape");
   const [resultOrientation, setResultOrientation] = useState("portrait");
-  const [isEnlarged, setIsEnlarged] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState(null);
   const [showZoomHint, setShowZoomHint] = useState(true);
 
   const preloadRequestRef = useRef(0);
   const initializedRef = useRef(false);
-  const lastTapRef = useRef(0);
 
   const hasUnlockedAccess = Boolean(isPremium || linkUnlocked);
 
@@ -323,17 +322,17 @@ export const ResultScreen = () => {
   }, [displayImageUrl]);
 
   useEffect(() => {
-    if (!isEnlarged) return;
+    if (!enlargedImage) return;
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
-        setIsEnlarged(false);
+        setEnlargedImage(null);
       }
     };
 
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [isEnlarged]);
+  }, [enlargedImage]);
 
   const handleSubmitReview = async () => {
     if (rating === 0) {
@@ -359,18 +358,10 @@ export const ResultScreen = () => {
     if (!hasUnlockedAccess) setScreen("pricing");
   };
 
-  const openEnlargedImage = () => {
-    if (!displayImageUrl || resultLoading || imageLoading || resultError) return;
+  const openEnlargedImage = (url) => {
+    if (!url) return;
     setShowZoomHint(false);
-    setIsEnlarged(true);
-  };
-
-  const handleResultImageTouchEnd = () => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      openEnlargedImage();
-    }
-    lastTapRef.current = now;
+    setEnlargedImage(url);
   };
 
   const handleAnotherDesign = async () => {
@@ -428,7 +419,8 @@ export const ResultScreen = () => {
                 <img
                   src={uploadedImage}
                   alt="Before"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  onClick={() => openEnlargedImage(uploadedImage)}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
@@ -461,14 +453,13 @@ export const ResultScreen = () => {
                       src={displayImageUrl}
                       className="w-full h-full object-contain cursor-zoom-in"
                       alt="AI Result"
-                      onDoubleClick={openEnlargedImage}
-                      onTouchEnd={handleResultImageTouchEnd}
+                      onClick={() => openEnlargedImage(displayImageUrl)}
                     />
                     {showZoomHint && (
                       <div className="absolute bottom-3 right-3 rounded-full border border-white/10 bg-black/65 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white/80 backdrop-blur-sm">
                         <span className="inline-flex items-center gap-1">
                           <ZoomIn className="w-3 h-3" />
-                          Double-tap to enlarge
+                          Tap to enlarge
                         </span>
                       </div>
                     )}
@@ -552,16 +543,16 @@ export const ResultScreen = () => {
         onSubmit={handleSubmitReview}
       />
 
-      {isEnlarged && (
+      {enlargedImage && (
         <div
           className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4"
-          onClick={() => setIsEnlarged(false)}
+          onClick={() => setEnlargedImage(null)}
         >
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              setIsEnlarged(false);
+              setEnlargedImage(null);
             }}
             className="absolute top-4 right-4 p-2 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors"
             aria-label="Close enlarged image"
@@ -570,7 +561,7 @@ export const ResultScreen = () => {
           </button>
 
           <img
-            src={displayImageUrl}
+            src={enlargedImage}
             alt="Enlarged AI Result"
             className="max-w-full max-h-full object-contain"
             onClick={(event) => event.stopPropagation()}
