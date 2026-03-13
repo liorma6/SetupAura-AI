@@ -581,6 +581,10 @@ export const RecommendationsScreen = () => {
           This takes about a minute. We'll also email you the result! You can
           safely leave this page and come back later.
         </p>
+        <p className="text-gray-500 text-sm mt-2 font-medium">
+          Tip: Check your Promotions or Spam folder if you don't see it within
+          a minute.
+        </p>
       </div>
     );
   }

@@ -1095,12 +1095,11 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
         if (process.env.EMAIL_USER && email) {
           const regularEmailBody = `
             <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0d0d0d;color:#fff;padding:28px;border-radius:14px;">
-                <h1 style="color:#a855f7;margin:0 0 10px 0;">Your Gaming Room Design Is Ready</h1>
-                <p style="color:#d1d5db;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+                <h1 style="color:#a855f7;margin:0 0 10px 0;">Your room design is ready</h1>
+                <p style="color:#d1d5db;margin:0 0 16px 0;">I finished your <strong>${activeTheme}</strong> setup. Your image is below.</p>
                 <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
-                ${renderShoppingListHtml(lockedShoppingList, false)}
                 <div style="margin-top:20px;text-align:center;">
-                    <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Your Result</a>
+                    <a href="${redirectLink}" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;">View Full Result & Shopping List</a>
                 </div>
             </div>`;
           transporter
@@ -1108,6 +1107,7 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
               from: '"Lior | SetupAura" <support@setupaura.online>',
               to: email.trim(),
               subject: "Your SetupAura AI Room Design is Ready",
+              text: `Your ${activeTheme} room design is ready. Click the link to view your result and exact-match shopping list: ${redirectLink}`,
               html: regularEmailBody,
               attachments: [
                 {
@@ -1179,10 +1179,9 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
             if (process.env.EMAIL_USER && email) {
               const adminEmailBody = `
                 <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#0b0f1a;color:#fff;padding:28px;border-radius:14px;">
-                    <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your Premium Design & Shopping List</h1>
-                    <p style="color:#cbd5e1;margin:0 0 16px 0;">Theme: <strong>${activeTheme}</strong></p>
+                    <h1 style="color:#60a5fa;margin:0 0 10px 0;">Your premium room design is ready</h1>
+                    <p style="color:#cbd5e1;margin:0 0 16px 0;">I finished your <strong>${activeTheme}</strong> setup. Open the result page to view the design and shopping list.</p>
                     <div style="margin:14px 0;"><img src="cid:design_image" alt="Generated room" style="width:100%;border-radius:10px;" /></div>
-                    ${renderShoppingListHtml(fullShoppingList, true)}
                     <div style="margin-top:18px;">
                         <a href="${redirectLink}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Open Your Result</a>
                     </div>
@@ -1191,6 +1190,7 @@ DO NOT: add floating objects, black bars, or cartoonish CGI effects. Keep every 
                 from: '"Lior | SetupAura" <support@setupaura.online>',
                 to: email.trim(),
                 subject: "Your Full Design + Shopping List",
+                text: `Your ${activeTheme} room design is ready. Click the link to view your result and exact-match shopping list: ${redirectLink}`,
                 html: adminEmailBody,
                 attachments: [
                   {
